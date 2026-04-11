@@ -198,9 +198,9 @@ export function TrainingWeekTable({
           </thead>
           <tbody>
             {display.days.map((day, i) => {
-              const autoCount = countNonEmptySessions(day);
-              const totalSessions = day.total_sessions_override ?? autoCount;
               const draftDay = draft?.days[i];
+              // Always auto-count from filled slots — no manual override
+              const totalSessions = countNonEmptySessions(draftDay ?? day);
 
               return (
                 <tr key={day.day} className="border-b border-border last:border-0">
@@ -267,31 +267,9 @@ export function TrainingWeekTable({
                     )}
                   </td>
 
-                  {/* Total sessions */}
+                  {/* Total sessions — always auto-counted from filled slots */}
                   <td className="px-3 py-3">
-                    {isEditing && draftDay ? (
-                      <div className="flex flex-col gap-0.5">
-                        <Input
-                          type="number"
-                          min={0}
-                          max={20}
-                          value={draftDay.total_sessions_override ?? ""}
-                          placeholder={String(autoCount)}
-                          aria-label="Total sessions override"
-                          onChange={(e) =>
-                            updateDay(i, (d) => ({
-                              ...d,
-                              total_sessions_override:
-                                e.target.value === "" ? null : Number(e.target.value),
-                            }))
-                          }
-                          className="h-7 text-xs w-14 px-2"
-                        />
-                        <span className="text-muted-foreground text-xs">auto: {autoCount}</span>
-                      </div>
-                    ) : (
-                      <span className="font-semibold text-foreground">{totalSessions}</span>
-                    )}
+                    <span className="font-semibold text-foreground">{totalSessions}</span>
                   </td>
 
                   {/* Session types */}
