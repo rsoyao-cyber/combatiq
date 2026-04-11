@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Check, Pencil } from "lucide-react";
 
 export function GoalEditor({
   athleteId,
@@ -19,7 +22,6 @@ export function GoalEditor({
 
   async function handleSave() {
     setSaving(true);
-    // Upsert: delete existing for this month then insert, or just insert if none
     const { error } = await supabase.from("monthly_goal").upsert(
       { athlete_id: athleteId, month_year: monthYear, goal_text: goal },
       { onConflict: "athlete_id,month_year" },
@@ -33,46 +35,41 @@ export function GoalEditor({
   }
 
   return (
-    <div className="mt-3">
-      <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400 mb-1">
+    <div className="mt-4 pt-4 border-t border-border">
+      <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">
         Monthly goal — {monthYear}
       </p>
       {editing ? (
         <div className="flex gap-2 items-start">
-          <textarea
-            className="flex-1 text-sm border border-zinc-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none"
+          <Textarea
+            className="flex-1 text-sm resize-none"
             rows={2}
             value={goal}
             onChange={(e) => setGoal(e.target.value)}
             autoFocus
           />
-          <div className="flex flex-col gap-1.5">
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="px-3 py-1.5 bg-zinc-900 text-white text-xs font-semibold rounded-lg disabled:opacity-50"
-            >
+          <div className="flex flex-col gap-1.5 shrink-0">
+            <Button size="sm" onClick={handleSave} disabled={saving} className="text-xs">
               {saving ? "Saving…" : "Save"}
-            </button>
-            <button
-              onClick={() => setEditing(false)}
-              className="px-3 py-1.5 bg-zinc-100 text-zinc-600 text-xs font-semibold rounded-lg"
-            >
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setEditing(false)} className="text-xs">
               Cancel
-            </button>
+            </Button>
           </div>
         </div>
       ) : (
         <div className="flex gap-2 items-center">
-          <p className="text-sm text-zinc-700 flex-1">
-            {goal || <span className="text-zinc-400 italic">No goal set</span>}
+          <p className="text-sm text-foreground flex-1">
+            {goal || <span className="text-muted-foreground italic">No goal set</span>}
           </p>
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => setEditing(true)}
-            className="text-xs text-amber-600 hover:text-amber-700 font-semibold shrink-0"
+            className={`shrink-0 gap-1.5 text-xs ${saved ? "text-emerald-600" : "text-primary"}`}
           >
-            {saved ? "Saved ✓" : "Edit"}
-          </button>
+            {saved ? <><Check className="w-3 h-3" /> Saved</> : <><Pencil className="w-3 h-3" /> Edit</>}
+          </Button>
         </div>
       )}
     </div>

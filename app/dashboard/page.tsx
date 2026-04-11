@@ -17,10 +17,10 @@ export default async function DashboardPage() {
     return (
       <div className="max-w-6xl mx-auto px-4 py-10">
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-2xl font-bold text-zinc-900">Squad</h1>
+          <h1 className="text-2xl font-bold text-foreground">Squad</h1>
           <AddAthleteButton />
         </div>
-        <p className="text-zinc-400">No athletes yet. Add one or import a PDF to get started.</p>
+        <p className="text-muted-foreground">No athletes yet. Add one or import a PDF to get started.</p>
       </div>
     );
   }
@@ -77,8 +77,8 @@ export default async function DashboardPage() {
       {/* Page header */}
       <div className="flex items-end justify-between mb-8 gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-900">Squad</h1>
-          <p className="text-zinc-500 text-sm mt-1">{athletes.length} athletes</p>
+          <h1 className="text-2xl font-bold text-foreground">Squad</h1>
+          <p className="text-muted-foreground text-sm mt-1">{athletes.length} athletes</p>
         </div>
         <AddAthleteButton />
 

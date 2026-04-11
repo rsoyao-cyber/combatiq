@@ -2,6 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Separator } from "@/components/ui/separator";
+import { Loader2, AlertCircle, ExternalLink, Copy } from "lucide-react";
 
 type ReportType = "monthly" | "prefight";
 
@@ -21,18 +27,23 @@ type PrefightReport = {
   camp_summary: string;
 };
 
-
-function StringList({ items, color = "zinc" }: { items: string[]; color?: string }) {
-  const colorMap: Record<string, string> = {
-    green:  "bg-emerald-50 text-emerald-800 border-emerald-200",
-    amber:  "bg-amber-50 text-amber-800 border-amber-200",
-    blue:   "bg-blue-50 text-blue-800 border-blue-200",
-    zinc:   "bg-zinc-50 text-zinc-700 border-zinc-200",
+function ItemList({
+  items,
+  variant = "default",
+}: {
+  items: string[];
+  variant?: "green" | "amber" | "blue" | "default";
+}) {
+  const styles = {
+    green:   "bg-emerald-50 text-emerald-800 border-emerald-200",
+    amber:   "bg-amber-50  text-amber-800  border-amber-200",
+    blue:    "bg-blue-50   text-blue-800   border-blue-200",
+    default: "bg-muted     text-foreground  border-border",
   };
   return (
     <ul className="flex flex-col gap-2">
       {items.map((item, i) => (
-        <li key={i} className={`text-sm border rounded-lg px-3 py-2 ${colorMap[color] ?? colorMap.zinc}`}>
+        <li key={i} className={`text-sm border rounded-lg px-3 py-2 ${styles[variant]}`}>
           {item}
         </li>
       ))}
@@ -42,73 +53,162 @@ function StringList({ items, color = "zinc" }: { items: string[]; color?: string
 
 function MonthlyPreview({ report }: { report: MonthlyReport }) {
   return (
-    <div className="flex flex-col gap-6 bg-white rounded-2xl border border-zinc-200 p-6 shadow-sm">
-      <div>
-        <h3 className="text-xs font-bold uppercase tracking-widest text-zinc-400 mb-2">Monthly Review</h3>
-        <p className="text-zinc-800 text-sm leading-relaxed">{report.summary}</p>
-      </div>
-      <div>
-        <h4 className="text-sm font-bold text-zinc-700 mb-3">Performance</h4>
-        <div className="flex flex-col gap-3">
-          {Object.entries(report.performance_narrative).map(([key, val]) => (
-            <div key={key}>
-              <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-1 capitalize">{key}</p>
-              <p className="text-sm text-zinc-700 leading-relaxed">{val}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div>
-        <h4 className="text-sm font-bold text-zinc-700 mb-2">Wellbeing</h4>
-        <p className="text-sm text-zinc-700 leading-relaxed">{report.wellbeing_summary}</p>
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+          Monthly Review
+        </CardTitle>
+        <p className="text-sm leading-relaxed text-foreground">{report.summary}</p>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-5">
+        <Separator />
         <div>
-          <h4 className="text-sm font-bold text-zinc-700 mb-2">Strengths</h4>
-          <StringList items={report.strengths} color="green" />
+          <p className="text-sm font-bold mb-3">Performance</p>
+          <div className="flex flex-col gap-3">
+            {Object.entries(report.performance_narrative).map(([key, val]) => (
+              <div key={key}>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1 capitalize">{key}</p>
+                <p className="text-sm leading-relaxed">{val}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+        <Separator />
+        <div>
+          <p className="text-sm font-bold mb-2">Wellbeing</p>
+          <p className="text-sm leading-relaxed">{report.wellbeing_summary}</p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <p className="text-sm font-bold mb-2">Strengths</p>
+            <ItemList items={report.strengths} variant="green" />
+          </div>
+          <div>
+            <p className="text-sm font-bold mb-2">Development areas</p>
+            <ItemList items={report.development_areas} variant="amber" />
+          </div>
         </div>
         <div>
-          <h4 className="text-sm font-bold text-zinc-700 mb-2">Development areas</h4>
-          <StringList items={report.development_areas} color="amber" />
+          <p className="text-sm font-bold mb-2">Next steps</p>
+          <ItemList items={report.next_steps} />
         </div>
-      </div>
-      <div>
-        <h4 className="text-sm font-bold text-zinc-700 mb-2">Next steps</h4>
-        <StringList items={report.next_steps} color="zinc" />
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 
 function PrefightPreview({ report }: { report: PrefightReport }) {
   return (
-    <div className="flex flex-col gap-6 bg-white rounded-2xl border border-zinc-200 p-6 shadow-sm">
-      <div>
-        <h3 className="text-xs font-bold uppercase tracking-widest text-zinc-400 mb-2">Pre-Fight Readiness</h3>
-        <p className="text-zinc-800 text-sm leading-relaxed">{report.readiness_statement}</p>
-      </div>
-      <div>
-        <h4 className="text-sm font-bold text-zinc-700 mb-2">Preparation highlights</h4>
-        <StringList items={report.preparation_highlights} color="green" />
-      </div>
-      <div>
-        <h4 className="text-sm font-bold text-zinc-700 mb-2">Physical benchmarks</h4>
-        <div className="flex flex-col gap-2">
-          {report.physical_benchmarks.map((b, i) => (
-            <div key={i} className="border border-blue-200 bg-blue-50 rounded-xl px-4 py-3">
-              <div className="flex items-baseline gap-2 mb-1">
-                <span className="text-xs font-semibold text-blue-600 uppercase tracking-wide">{b.metric}</span>
-                <span className="text-sm font-bold text-blue-900">{b.value}</span>
-              </div>
-              <p className="text-xs text-blue-700 leading-relaxed">{b.interpretation}</p>
-            </div>
-          ))}
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+          Pre-Fight Readiness
+        </CardTitle>
+        <p className="text-sm leading-relaxed">{report.readiness_statement}</p>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-5">
+        <Separator />
+        <div>
+          <p className="text-sm font-bold mb-2">Preparation highlights</p>
+          <ItemList items={report.preparation_highlights} variant="green" />
         </div>
+        <div>
+          <p className="text-sm font-bold mb-2">Physical benchmarks</p>
+          <div className="flex flex-col gap-2">
+            {report.physical_benchmarks.map((b, i) => (
+              <div key={i} className="border border-blue-200 bg-blue-50 rounded-lg px-4 py-3">
+                <div className="flex items-baseline gap-2 mb-1">
+                  <span className="text-xs font-semibold text-blue-600 uppercase tracking-wide">{b.metric}</span>
+                  <span className="text-sm font-bold text-blue-900">{b.value}</span>
+                </div>
+                <p className="text-xs text-blue-700 leading-relaxed">{b.interpretation}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div>
+          <p className="text-sm font-bold mb-2">Camp summary</p>
+          <p className="text-sm leading-relaxed">{report.camp_summary}</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ReportSection({
+  buttonLabel,
+  buttonClassName,
+  status,
+  error,
+  onGenerate,
+  children,
+  token,
+  athleteId,
+  reportType,
+}: {
+  buttonLabel: string;
+  buttonClassName: string;
+  status: "idle" | "loading" | "success" | "error";
+  error: string;
+  onGenerate: () => void;
+  children: React.ReactNode;
+  token: string | null;
+  athleteId: string;
+  reportType: ReportType;
+}) {
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <Button
+          onClick={onGenerate}
+          disabled={status === "loading"}
+          className={buttonClassName}
+        >
+          {status === "loading" ? (
+            <><Loader2 className="w-4 h-4 animate-spin" /> Generating…</>
+          ) : buttonLabel}
+        </Button>
+        {status === "loading" && (
+          <p className="text-xs text-muted-foreground animate-pulse">
+            Analysing data, this takes ~15–30 seconds…
+          </p>
+        )}
       </div>
-      <div>
-        <h4 className="text-sm font-bold text-zinc-700 mb-2">Camp summary</h4>
-        <p className="text-sm text-zinc-700 leading-relaxed">{report.camp_summary}</p>
-      </div>
+
+      {status === "error" && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {status === "success" && children && (
+        <div className="flex flex-col gap-3">
+          {children}
+          <div className="flex flex-wrap gap-3 items-center">
+            {reportType === "monthly" && (
+              <Link href={`/dashboard/athlete/${athleteId}/report?type=monthly`} className={cn(buttonVariants({ variant: "link" }), "p-0 h-auto text-sm font-semibold gap-1")}>
+                Open full report view <ExternalLink className="w-3 h-3" />
+              </Link>
+            )}
+            {token && (
+              <>
+                <Link href={`/report/${token}`} target="_blank" className={cn(buttonVariants({ variant: "link" }), "p-0 h-auto text-sm font-semibold text-muted-foreground gap-1")}>
+                  Shareable link <ExternalLink className="w-3 h-3" />
+                </Link>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1.5 text-xs text-muted-foreground"
+                  onClick={() => navigator.clipboard.writeText(`${window.location.origin}/report/${token}`)}
+                >
+                  <Copy className="w-3 h-3" /> Copy link
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -143,124 +243,43 @@ export function ReportPanel({ athleteId }: { athleteId: string }) {
     const json = await res.json();
 
     if (!res.ok) {
-      if (reportType === "monthly") {
-        setMonthlyError(json.error ?? "Unknown error");
-        setMonthlyStatus("error");
-      } else {
-        setPrefightError(json.error ?? "Unknown error");
-        setPrefightStatus("error");
-      }
+      if (reportType === "monthly") { setMonthlyError(json.error ?? "Unknown error"); setMonthlyStatus("error"); }
+      else { setPrefightError(json.error ?? "Unknown error"); setPrefightStatus("error"); }
     } else {
-      if (reportType === "monthly") {
-        setMonthlyReport(json.report as MonthlyReport);
-        setMonthlyToken(json.shareToken ?? null);
-        setMonthlyStatus("success");
-      } else {
-        setPrefightReport(json.report as PrefightReport);
-        setPrefightToken(json.shareToken ?? null);
-        setPrefightStatus("success");
-      }
+      if (reportType === "monthly") { setMonthlyReport(json.report as MonthlyReport); setMonthlyToken(json.shareToken ?? null); setMonthlyStatus("success"); }
+      else { setPrefightReport(json.report as PrefightReport); setPrefightToken(json.shareToken ?? null); setPrefightStatus("success"); }
     }
   }
 
   return (
     <div className="flex flex-col gap-8">
+      <ReportSection
+        buttonLabel="Generate Monthly Review"
+        buttonClassName="font-bold gap-2"
+        status={monthlyStatus}
+        error={monthlyError}
+        onGenerate={() => handleGenerate("monthly")}
+        token={monthlyToken}
+        athleteId={athleteId}
+        reportType="monthly"
+      >
+        {monthlyReport && <MonthlyPreview report={monthlyReport} />}
+      </ReportSection>
 
-      {/* Monthly report */}
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            onClick={() => handleGenerate("monthly")}
-            disabled={monthlyStatus === "loading"}
-            className="px-5 py-2 bg-amber-400 text-zinc-900 text-sm font-bold rounded-xl hover:bg-amber-300 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
-          >
-            {monthlyStatus === "loading" ? "Generating…" : "Generate Monthly Review"}
-          </button>
-          {monthlyStatus === "loading" && (
-            <p className="text-xs text-zinc-500 animate-pulse">Analysing data, this takes ~15–30 seconds…</p>
-          )}
-        </div>
+      <Separator />
 
-        {monthlyStatus === "error" && (
-          <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-            Error: {monthlyError}
-          </p>
-        )}
-
-        {monthlyReport && monthlyStatus === "success" && (
-          <div className="flex flex-col gap-3">
-            <MonthlyPreview report={monthlyReport} />
-            <div className="flex flex-wrap gap-4 items-center">
-              <Link
-                href={`/dashboard/athlete/${athleteId}/report?type=monthly`}
-                className="text-sm text-amber-600 hover:text-amber-700 font-semibold"
-              >
-                Open full report view →
-              </Link>
-              {monthlyToken && (
-                <Link
-                  href={`/report/${monthlyToken}`}
-                  target="_blank"
-                  className="text-sm text-zinc-500 hover:text-zinc-700 font-semibold"
-                >
-                  Shareable link ↗
-                </Link>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Pre-fight report */}
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            onClick={() => handleGenerate("prefight")}
-            disabled={prefightStatus === "loading"}
-            className="px-5 py-2 bg-zinc-900 text-white text-sm font-bold rounded-xl hover:bg-zinc-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
-          >
-            {prefightStatus === "loading" ? "Generating…" : "Generate Pre-Fight Report"}
-          </button>
-          {prefightStatus === "loading" && (
-            <p className="text-xs text-zinc-500 animate-pulse">Analysing data, this takes ~15–30 seconds…</p>
-          )}
-        </div>
-
-        {prefightStatus === "error" && (
-          <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-            Error: {prefightError}
-          </p>
-        )}
-
-        {prefightReport && prefightStatus === "success" && (
-          <div className="flex flex-col gap-3">
-            <PrefightPreview report={prefightReport} />
-            <div className="flex flex-wrap gap-4 items-center">
-              {prefightToken && (
-                <Link
-                  href={`/report/${prefightToken}`}
-                  target="_blank"
-                  className="text-sm text-amber-600 hover:text-amber-700 font-semibold"
-                >
-                  Open shareable report ↗
-                </Link>
-              )}
-              {prefightToken && (
-                <button
-                  onClick={() => {
-                    const url = `${window.location.origin}/report/${prefightToken}`;
-                    navigator.clipboard.writeText(url);
-                  }}
-                  className="text-sm text-zinc-500 hover:text-zinc-700 font-semibold"
-                >
-                  Copy link
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-
+      <ReportSection
+        buttonLabel="Generate Pre-Fight Report"
+        buttonClassName="font-bold gap-2"
+        status={prefightStatus}
+        error={prefightError}
+        onGenerate={() => handleGenerate("prefight")}
+        token={prefightToken}
+        athleteId={athleteId}
+        reportType="prefight"
+      >
+        {prefightReport && <PrefightPreview report={prefightReport} />}
+      </ReportSection>
     </div>
   );
 }

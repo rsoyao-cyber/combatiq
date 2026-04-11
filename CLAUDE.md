@@ -7,9 +7,11 @@ schedule actuals. Claude API generates monthly review reports and pre-fight
 readiness reports.
 
 ## Stack
-- Next.js 14 (App Router), TypeScript, Tailwind CSS
+- Next.js 16 (App Router), TypeScript, Tailwind CSS v4
 - Supabase (PostgreSQL) for all data
 - Anthropic Claude API (claude-sonnet-4-6) for report generation
+- shadcn/ui (base-nova style, @base-ui/react primitives) for all UI components
+- tweakcn indigo/violet theme via CSS custom properties
 - Recharts for trend visualisation
 - Deployed to Vercel
 
@@ -25,13 +27,22 @@ All athlete ratings use 0-5 (0 = very poor, 5 = excellent)
 - Never show practitioner notes to athletes
 - Report generation must include traffic-light scoring vs benchmarks
 - Pre-fight report must be positively framed (strengths only)
+- Both reports are written in first person — coach speaking directly to the athlete
 
 ## Coding conventions
 - Named exports only
 - async/await, never .then()
 - Supabase client lives in lib/supabase.ts (browser/anon key)
 - Supabase admin client lives in lib/supabase-admin.ts (service role key, server only)
-- All DB types auto-generated from Supabase schema
+- All DB types hand-maintained in lib/database.types.ts
+
+## UI conventions
+- All components use shadcn/ui base-nova style (@base-ui/react primitives)
+- base-nova Button does NOT support asChild — use buttonVariants({variant, size}) + cn() applied directly to <Link> instead
+- Theme tokens (bg-primary, text-foreground, text-muted-foreground, etc.) are used throughout — never hardcode zinc/amber colours for structural elements
+- Traffic-light colours (emerald/amber/red) for rest/med/high intensity are intentional exceptions
+- Range slider thumb colour is set via var(--primary) in globals.css
+- Theme defined in app/globals.css using tweakcn oklch CSS custom properties
 
 ## Primary data ingestion flow
 Yusuf uploads Trainerize PDF exports. The system parses them via
@@ -152,7 +163,7 @@ Key files:
 - app/api/training-week/route.ts  — GET + PUT (type: "primary" | "alternative")
 - components/TrainingWeekTable.tsx — reusable table (readOnly + editable modes)
 - app/dashboard/athlete/[id]/WeekSchedulePanel.tsx — dashboard section (week nav, legend, both tables)
-- app/checkin/[athleteId]/week/   — athlete alternative week entry (mobile form)
+- app/checkin/[athleteId]/week/   — athlete alternative week entry
 
 Coach flow: dashboard → Edit primary table → Save
 Athlete flow: /checkin/[athleteId]/week?weekStart=YYYY-MM-DD → fill alternative → Submit
@@ -161,7 +172,26 @@ Report generation includes training_week_schedule stats in the stats JSON passed
 the Claude prompt (slot counts, adherence, consecutive high-day flags across last 5 weeks).
 Model must not fabricate sessions; if alternative is missing, must say so.
 
-## Report generation prompt v2
-[PENDING — to be updated after Yusuf reviews the first real report output.
-Paste his feedback here and ask Claude to update the prompts in
-app/api/generate-report/route.ts and save the final version in this section.]
+## Athlete dashboard section order
+1. Profile header (name, sport, weight class, RAG badge, monthly goal editor)
+2. Weekly training schedule (primary plan + athlete actuals, week navigation)
+3. Wellbeing trends — last 28 days
+4. Training performance (exercise progressions)
+5. Injury log — last 14 days
+6. Reports (monthly review + pre-fight)
+7. Session history
+
+## Report generation — current prompt approach
+Both report types are written in first person, as the coach speaking directly
+to the athlete. Use "I", "you", "your", "we" throughout.
+
+Monthly report: professional, direct, evidence-based. Coach reviewing the
+month with the athlete ("I've been tracking your progress...",
+"I want you to focus on...").
+
+Pre-fight report: confident, personal, positively framed only. Coach
+speaking before a fight ("I've watched you build through this camp...",
+"I'm confident you're ready..."). No weakness or deficit language. No
+injury mention.
+
+Prompts live in app/api/generate-report/route.ts.

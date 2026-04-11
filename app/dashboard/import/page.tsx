@@ -3,6 +3,13 @@
 import { useState, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { ArrowLeft, Upload, Loader2, AlertCircle, Info } from "lucide-react";
 import type { ParsedImportData } from "@/lib/trainerize-types";
 
 type Usage = {
@@ -60,7 +67,6 @@ export default function ImportPage({
       setRawStream(accumulated.split("__USAGE__")[0]);
     }
 
-    // Check for server-side error sentinel
     if (accumulated.includes("__ERROR__")) {
       const errMsg = accumulated.split("__ERROR__")[1]?.trim() ?? "Unknown error";
       setErrorMsg(errMsg);
@@ -69,12 +75,10 @@ export default function ImportPage({
     }
 
     const [jsonPart, usagePart] = accumulated.split("__USAGE__");
-
     if (usagePart) {
       try { setUsage(JSON.parse(usagePart)); } catch { /* non-fatal */ }
     }
 
-    // Strip heartbeat zero-width spaces before parsing
     const cleanJson = jsonPart.replace(/\u200B/g, "");
     const start = cleanJson.indexOf("{");
     const end = cleanJson.lastIndexOf("}");
@@ -103,78 +107,101 @@ export default function ImportPage({
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-10 flex flex-col gap-6">
-
-      {/* header */}
-      <div className="flex items-center gap-4">
-        <Link href={backHref} className="text-sm text-zinc-500 hover:text-zinc-800 transition-colors">
-          ←
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <Link href={backHref} className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "shrink-0")}>
+          <ArrowLeft className="w-4 h-4" />
         </Link>
         <div>
-          <h1 className="text-xl font-bold text-zinc-900">Import Trainerize PDF</h1>
+          <h1 className="text-xl font-bold">Import Trainerize PDF</h1>
           {athleteName && (
-            <p className="text-sm text-zinc-500 mt-0.5">
-              For <span className="font-semibold text-zinc-700">{athleteName}</span>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              For <span className="font-semibold text-foreground">{athleteName}</span>
             </p>
           )}
         </div>
       </div>
 
-      {/* upload form */}
-      <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm p-6 flex flex-col gap-5">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Upload PDF</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-5">
+          {athleteName && (
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                This PDF will be imported for <strong>{athleteName}</strong>. The athlete name in the PDF will be ignored.
+              </AlertDescription>
+            </Alert>
+          )}
 
-        {athleteName && (
-          <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
-            <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
-            <p className="text-sm text-amber-800">
-              This PDF will be imported for <strong>{athleteName}</strong>. The athlete name in the PDF will be ignored.
-            </p>
-          </div>
-        )}
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                PDF file
+              </label>
+              <input
+                type="file"
+                accept="application/pdf"
+                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                className="text-sm text-foreground file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-muted file:text-foreground hover:file:bg-muted/80 cursor-pointer"
+              />
+            </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wide">PDF file</label>
-            <input
-              type="file"
-              accept="application/pdf"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              className="text-sm text-zinc-700 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-zinc-100 file:text-zinc-700 hover:file:bg-zinc-200"
-            />
-          </div>
+            <Button
+              type="submit"
+              disabled={!file || status === "loading"}
+              className="self-start font-bold gap-2"
+            >
+              {status === "loading" ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Parsing…
+                </>
+              ) : (
+                <>
+                  <Upload className="w-4 h-4" />
+                  Upload &amp; Parse
+                </>
+              )}
+            </Button>
+          </form>
 
-          <button
-            type="submit"
-            disabled={!file || status === "loading"}
-            className="self-start px-5 py-2 bg-amber-400 text-zinc-900 text-sm font-bold rounded-xl hover:bg-amber-300 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
-          >
-            {status === "loading" ? "Parsing…" : "Upload & Parse"}
-          </button>
-        </form>
+          {status === "loading" && rawStream && (
+            <>
+              <Separator />
+              <div className="flex flex-col gap-2">
+                <p className="text-xs text-muted-foreground animate-pulse flex items-center gap-1.5">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  Extracting data with Claude…
+                </p>
+                <pre className="bg-muted rounded-lg p-4 text-xs text-muted-foreground overflow-auto max-h-64 font-mono">
+                  {rawStream}
+                </pre>
+              </div>
+            </>
+          )}
 
-        {status === "loading" && (
-          <div className="flex flex-col gap-2">
-            <p className="text-xs text-zinc-500 animate-pulse">Extracting data with Claude…</p>
-            {rawStream && (
-              <pre className="bg-zinc-50 border border-zinc-200 rounded-xl p-4 text-xs text-zinc-600 overflow-auto max-h-64 font-mono">
-                {rawStream}
-              </pre>
-            )}
-          </div>
-        )}
+          {status === "error" && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{errorMsg}</AlertDescription>
+            </Alert>
+          )}
 
-        {status === "error" && (
-          <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-            Error: {errorMsg}
-          </p>
-        )}
-
-        {usage && (
-          <p className="text-xs text-zinc-400">
-            Tokens: {usage.input_tokens.toLocaleString()} in / {usage.output_tokens.toLocaleString()} out
-            {" "}— Est. cost: ${usage.estimated_cost_usd.toFixed(4)}
-          </p>
-        )}
-      </div>
+          {usage && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <Badge variant="outline" className="text-xs text-muted-foreground font-normal">
+                {usage.input_tokens.toLocaleString()} in / {usage.output_tokens.toLocaleString()} out tokens
+              </Badge>
+              <Badge variant="outline" className="text-xs text-muted-foreground font-normal">
+                Est. ${usage.estimated_cost_usd.toFixed(4)}
+              </Badge>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
