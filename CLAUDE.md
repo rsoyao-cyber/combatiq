@@ -174,12 +174,25 @@ Model must not fabricate sessions; if alternative is missing, must say so.
 
 ## Athlete dashboard section order
 1. Profile header (name, sport, weight class, RAG badge, monthly goal editor)
-2. Weekly training schedule (primary plan + athlete actuals, week navigation)
-3. Wellbeing trends — last 28 days
-4. Training performance (exercise progressions)
-5. Injury log — last 14 days
-6. Reports (monthly review + pre-fight)
-7. Session history
+2. Weight tracking (actual vs −1%/week target chart, 8-week window)
+3. Weekly training schedule (primary plan + athlete actuals, week navigation)
+4. Wellbeing trends — last 28 days
+5. Training performance (exercise progressions)
+6. Injury log — last 14 days
+7. Reports (monthly review + pre-fight)
+8. Session history
+
+## Weight tracking
+Athletes log body weight (kg) in the daily check-in form (optional field).
+Stored in daily_check_in.weight_kg (numeric, nullable).
+Dashboard shows a Recharts LineChart with:
+- Actual weight: solid primary-coloured line from check-in data
+- Target trend: dashed emerald line, −1% compound per week from first logged weight
+- 8-week window
+Key files:
+- lib/analytics.ts — getWeightTrends(athleteId, weeks=8) returns { actuals, targets }
+- app/dashboard/athlete/[id]/WeightChart.tsx — the chart component
+SQL: ALTER TABLE public.daily_check_in ADD COLUMN weight_kg numeric;
 
 ## Report generation — current prompt approach
 Both report types are written in first person, as the coach speaking directly

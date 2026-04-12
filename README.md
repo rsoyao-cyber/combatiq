@@ -22,7 +22,7 @@ Practitioners enter test and training data. Athletes submit daily wellness check
 |---|---|
 | `athlete` | Athlete profiles — sport, weight class, competition level, training age |
 | `test_session` | One-off physical assessments (CMJ, grip strength, Yo-Yo, sprint, body comp) stored as `results_json` |
-| `daily_check_in` | Athlete-submitted daily wellness snapshot — sleep, fatigue, focus, mood, stress, diet, RPE, injury |
+| `daily_check_in` | Athlete-submitted daily wellness snapshot — sleep, fatigue, focus, mood, stress, diet, RPE, injury, body weight |
 | `monthly_goal` | Practitioner-set monthly goals per athlete |
 | `rmr` | Resting metabolic rate measurements |
 | `workout_program` | Overarching training block (e.g. Phase 1, 8 weeks) |
@@ -53,12 +53,13 @@ Practitioners enter test and training data. Athletes submit daily wellness check
 The athlete detail page sections appear in this order:
 
 1. **Profile header** — name, sport, weight class, RAG status badge, monthly goal editor
-2. **Weekly training schedule** — primary (coach) plan and athlete actuals with week navigation
-3. **Wellbeing trends** — 28-day check-in charts across all domains
-4. **Training performance** — exercise progression charts
-5. **Injury log** — last 14 days
-6. **Reports** — generate monthly review or pre-fight readiness report
-7. **Session history** — last 40 sessions
+2. **Weight tracking** — actual vs target (−1%/week) weight chart over 8 weeks
+3. **Weekly training schedule** — primary (coach) plan and athlete actuals with week navigation
+4. **Wellbeing trends** — 28-day check-in charts across all domains
+5. **Training performance** — exercise progression charts
+6. **Injury log** — last 14 days
+7. **Reports** — generate monthly review or pre-fight readiness report
+8. **Session history** — last 40 sessions
 
 ## Weekly training schedule
 

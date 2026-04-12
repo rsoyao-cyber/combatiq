@@ -5,6 +5,7 @@ import {
   getWellbeingTrends,
   getExerciseProgressions,
   getInjuryFlags,
+  getWeightTrends,
 } from "@/lib/analytics";
 import { getMondayOfWeek } from "@/lib/training-week-types";
 import type { TrainingWeekSnapshot } from "@/lib/training-week-types";
@@ -13,6 +14,7 @@ import { WellbeingCharts } from "./WellbeingCharts";
 import { PerformanceCharts } from "./PerformanceCharts";
 import { ReportPanel } from "./ReportPanel";
 import { WeekSchedulePanel } from "./WeekSchedulePanel";
+import { WeightChart } from "./WeightChart";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -73,6 +75,7 @@ export default async function AthletePage({
     injuryResult,
     sessionsResult,
     weekSnapshotResult,
+    weightTrendsResult,
   ] = await Promise.all([
     supabaseAdmin
       .from("athlete")
@@ -111,6 +114,8 @@ export default async function AthletePage({
       .eq("athlete_id", id)
       .eq("week_start_date", currentWeekStart)
       .maybeSingle(),
+
+    getWeightTrends(id, 8),
   ]);
 
   if (!athleteResult.data) notFound();
@@ -168,6 +173,11 @@ export default async function AthletePage({
           <GoalEditor athleteId={id} initialGoal={goal} monthYear={monthYear} />
         </CardContent>
       </Card>
+
+      {/* Weight tracking */}
+      <Section title="Weight tracking">
+        <WeightChart actuals={weightTrendsResult.actuals} targets={weightTrendsResult.targets} />
+      </Section>
 
       {/* Weekly training schedule */}
       <Section title="Weekly training schedule">

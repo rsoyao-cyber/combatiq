@@ -105,6 +105,7 @@ export function CheckInForm({
     injury_area: "",
     injury_pain_rating: 0,
     open_notes: "",
+    weight_kg: "",
   });
 
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
@@ -136,6 +137,7 @@ export function CheckInForm({
       injury_area: fields.injury_area || null,
       injury_pain_rating: fields.injury_area ? fields.injury_pain_rating : null,
       open_notes: fields.open_notes || null,
+      weight_kg: fields.weight_kg !== "" ? Number(fields.weight_kg) : null,
     });
 
     if (error) {
@@ -276,6 +278,27 @@ export function CheckInForm({
               value={fields.injury_pain_rating}
               onChange={(v) => set("injury_pain_rating", v)} />
           )}
+        </Section>
+
+        {/* BODY WEIGHT */}
+        <Section title="Body">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="weight_kg" className="text-base font-semibold text-foreground">
+              ⚖️ Body weight (kg)
+            </Label>
+            <input
+              id="weight_kg"
+              type="number"
+              inputMode="decimal"
+              min={0}
+              max={200}
+              step={0.1}
+              placeholder="e.g. 79.5 (optional)"
+              value={fields.weight_kg}
+              onChange={(e) => set("weight_kg", e.target.value)}
+              className="border border-input rounded-lg px-4 py-3 text-foreground bg-background placeholder:text-muted-foreground text-base focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
         </Section>
 
         {/* NOTES */}

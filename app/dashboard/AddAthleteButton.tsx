@@ -118,7 +118,7 @@ export function AddAthleteButton() {
             {/* Sport */}
             <div className="grid gap-1.5">
               <Label htmlFor="athlete-sport">Sport *</Label>
-              <Select required value={form.sport} onValueChange={(v) => set("sport", v)}>
+              <Select required value={form.sport ?? undefined} onValueChange={(v) => set("sport", v ?? "")}>
                 <SelectTrigger id="athlete-sport">
                   <SelectValue placeholder="Select sport…" />
                 </SelectTrigger>
@@ -143,7 +143,7 @@ export function AddAthleteButton() {
               </div>
               <div className="grid gap-1.5">
                 <Label htmlFor="athlete-level">Level</Label>
-                <Select value={form.competition_level} onValueChange={(v) => set("competition_level", v)}>
+                <Select value={form.competition_level ?? undefined} onValueChange={(v) => set("competition_level", v ?? "")}>
                   <SelectTrigger id="athlete-level">
                     <SelectValue placeholder="Select…" />
                   </SelectTrigger>

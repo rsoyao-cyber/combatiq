@@ -414,3 +414,64 @@ export async function getInjuryFlags(athleteId: string): Promise<InjuryFlag[]> {
 
   return flags;
 }
+
+// ─── 7. getWeightTrends ──────────────────────────────────────────────────────
+
+export type WeightActual = { date: string; weight_kg: number };
+export type WeightTarget = { date: string; weight_kg: number };
+
+export type WeightTrendsResult = {
+  actuals: WeightActual[];
+  /** Weekly target points (Mondays), starting from the week of the first logged weight,
+   *  projecting -1% compound per week for `weeks` weeks. Empty if no actuals. */
+  targets: WeightTarget[];
+};
+
+/** Returns the ISO date string for the Monday of the week containing `date`. */
+function getMondayOf(date: Date): string {
+  const d = new Date(date);
+  const day = d.getDay(); // 0=Sun, 1=Mon, …
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  return d.toISOString().split("T")[0];
+}
+
+export async function getWeightTrends(
+  athleteId: string,
+  weeks = 8,
+): Promise<WeightTrendsResult> {
+  const from = isoDateDaysAgo(weeks * 7);
+
+  const { data, error } = await supabaseAdmin
+    .from("daily_check_in")
+    .select("checkin_date, weight_kg")
+    .eq("athlete_id", athleteId)
+    .gte("checkin_date", from)
+    .not("weight_kg", "is", null)
+    .order("checkin_date", { ascending: true });
+
+  if (error) throw new Error(`getWeightTrends: ${error.message}`);
+
+  const actuals: WeightActual[] = (data ?? []).map((r) => ({
+    date: r.checkin_date,
+    weight_kg: r.weight_kg as number,
+  }));
+
+  if (actuals.length === 0) return { actuals: [], targets: [] };
+
+  // Build target series: -1% compound per week from the first actual
+  const baseWeight = actuals[0].weight_kg;
+  const baseMonday = getMondayOf(new Date(actuals[0].date));
+
+  const targets: WeightTarget[] = [];
+  for (let i = 0; i <= weeks; i++) {
+    const d = new Date(baseMonday);
+    d.setDate(d.getDate() + i * 7);
+    targets.push({
+      date: d.toISOString().split("T")[0],
+      weight_kg: Math.round(baseWeight * Math.pow(0.99, i) * 10) / 10,
+    });
+  }
+
+  return { actuals, targets };
+}

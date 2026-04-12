@@ -70,6 +70,7 @@ export type Database = {
           sleep_quality: number
           sparring_load_rounds: number | null
           stress: number
+          weight_kg: number | null
         }
         Insert: {
           athlete_id: string
@@ -90,6 +91,7 @@ export type Database = {
           sleep_quality: number
           sparring_load_rounds?: number | null
           stress: number
+          weight_kg?: number | null
         }
         Update: {
           athlete_id?: string
@@ -110,6 +112,7 @@ export type Database = {
           sleep_quality?: number
           sparring_load_rounds?: number | null
           stress?: number
+          weight_kg?: number | null
         }
         Relationships: [
           {

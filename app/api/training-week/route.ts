@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import type { Database } from "@/lib/database.types";
 import type { WeekScheduleJson, WeekSlot, SlotIntensity } from "@/lib/training-week-types";
 import { emptyWeekSchedule } from "@/lib/training-week-types";
 
@@ -183,12 +184,12 @@ export async function PUT(request: Request) {
   }
 
   // ── UPDATE — only touch the fields relevant to this type ──────────────────
-  const updatePayload: Record<string, unknown> = { updated_at: now };
+  const updatePayload: Database["public"]["Tables"]["training_week_snapshot"]["Update"] = { updated_at: now };
 
   if (type === "primary") {
-    updatePayload.primary_json = body.primary_json;
+    updatePayload.primary_json = body.primary_json as WeekScheduleJson;
   } else {
-    updatePayload.alternative_json = body.alternative_json ?? null;
+    updatePayload.alternative_json = (body.alternative_json ?? null) as WeekScheduleJson | null;
     if (adherence !== undefined) updatePayload.adherence = adherence;
     if (week_notes !== undefined) updatePayload.week_notes = week_notes;
   }
