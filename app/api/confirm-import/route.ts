@@ -130,6 +130,9 @@ export async function POST(request: Request) {
   let totalSetsCreated = 0;
 
   for (const session of training_sessions) {
+    // Skip sessions with no date — Claude occasionally returns null for rows it can't parse
+    if (!session.session_date) continue;
+
     const templateId = templateIdByName[session.workout_template_name] ?? null;
 
     const { data: createdSession, error: sessionError } = await supabaseAdmin
