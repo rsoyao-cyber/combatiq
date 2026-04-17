@@ -37,6 +37,7 @@ export function AddAthleteButton() {
 
   const [form, setForm] = useState({
     name: "",
+    sex: "",
     sport: "",
     weight_class: "",
     competition_level: "",
@@ -52,7 +53,7 @@ export function AddAthleteButton() {
     if (!val) {
       setError("");
       setStatus("idle");
-      setForm({ name: "", sport: "", weight_class: "", competition_level: "", training_age_years: "" });
+      setForm({ name: "", sex: "", sport: "", weight_class: "", competition_level: "", training_age_years: "" });
     }
   }
 
@@ -66,6 +67,7 @@ export function AddAthleteButton() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: form.name,
+        sex: form.sex || null,
         sport: form.sport,
         weight_class: form.weight_class,
         competition_level: form.competition_level,
@@ -113,6 +115,20 @@ export function AddAthleteButton() {
                 onChange={(e) => set("name", e.target.value)}
                 placeholder="e.g. Micah Smith"
               />
+            </div>
+
+            {/* Sex */}
+            <div className="grid gap-1.5">
+              <Label htmlFor="athlete-sex">Sex</Label>
+              <Select value={form.sex || undefined} onValueChange={(v) => set("sex", v ?? "")}>
+                <SelectTrigger id="athlete-sex">
+                  <SelectValue placeholder="Prefer not to say" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="male">Male</SelectItem>
+                  <SelectItem value="female">Female</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Sport */}

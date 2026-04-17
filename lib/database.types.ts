@@ -21,6 +21,7 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          sex: 'male' | 'female' | null
           sport: string
           trainerize_user_id: number | null
           training_age_years: number
@@ -32,6 +33,7 @@ export type Database = {
           created_at?: string
           id?: string
           name: string
+          sex?: 'male' | 'female' | null
           sport: string
           trainerize_user_id?: number | null
           training_age_years: number
@@ -43,6 +45,7 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string
+          sex?: 'male' | 'female' | null
           sport?: string
           trainerize_user_id?: number | null
           training_age_years?: number

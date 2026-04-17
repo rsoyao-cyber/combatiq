@@ -79,7 +79,7 @@ export default async function AthletePage({
   ] = await Promise.all([
     supabaseAdmin
       .from("athlete")
-      .select("id, name, sport, weight_class, competition_level, training_age_years")
+      .select("id, name, sex, sport, weight_class, competition_level, training_age_years")
       .eq("id", id)
       .single(),
 
@@ -155,6 +155,12 @@ export default async function AthletePage({
               <h1 className="text-2xl font-bold">{athlete.name}</h1>
               <div className="flex flex-wrap gap-2 mt-2">
                 <span className="text-sm text-muted-foreground">{athlete.sport}</span>
+                {athlete.sex && (
+                  <>
+                    <span className="text-muted-foreground/40">·</span>
+                    <span className="text-sm text-muted-foreground capitalize">{athlete.sex}</span>
+                  </>
+                )}
                 <span className="text-muted-foreground/40">·</span>
                 <span className="text-sm text-muted-foreground">{athlete.weight_class}</span>
                 <span className="text-muted-foreground/40">·</span>

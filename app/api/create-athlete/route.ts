@@ -13,13 +13,14 @@ export async function POST(request: Request) {
     );
   }
 
-  const { name, sport, weight_class, competition_level, training_age_years, clinic_name, trainerize_user_id } =
+  const { name, sex, sport, weight_class, competition_level, training_age_years, clinic_name, trainerize_user_id } =
     result.data;
 
   const { data, error } = await supabaseAdmin
     .from("athlete")
     .insert({
       name,
+      sex: sex ?? null,
       sport,
       weight_class,
       competition_level,
