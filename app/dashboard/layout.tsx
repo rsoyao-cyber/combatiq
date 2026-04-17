@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Separator } from "@/components/ui/separator";
+import { SignOutButton } from "@/components/SignOutButton";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -23,6 +24,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             >
               Settings
             </Link>
+            <Separator orientation="vertical" className="h-4 bg-primary-foreground/20 mx-1" />
+            <SignOutButton />
           </nav>
         </div>
       </header>
