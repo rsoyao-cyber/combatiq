@@ -1,8 +1,11 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
+import { rateLimits, getClientIp, tooManyRequests } from "@/lib/rate-limit";
 
 // Allow up to 5 minutes on Vercel
 export const maxDuration = 300;
+
+const MAX_PDF_BYTES = 10 * 1024 * 1024; // 10 MB
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -68,6 +71,9 @@ Sessions appear in the Previous Stats tables -- extract ALL dated rows,
 one TrainingSession object per date column.`;
 
 export async function POST(request: Request) {
+  const { success } = await rateLimits.parseTrainerize.limit(getClientIp(request));
+  if (!success) return tooManyRequests();
+
   const formData = await request.formData();
   const file = formData.get("file");
 
@@ -77,6 +83,10 @@ export async function POST(request: Request) {
 
   if (file.type !== "application/pdf") {
     return NextResponse.json({ error: "File must be a PDF" }, { status: 400 });
+  }
+
+  if (file.size > MAX_PDF_BYTES) {
+    return NextResponse.json({ error: "File exceeds 10 MB limit" }, { status: 413 });
   }
 
   const buffer = await file.arrayBuffer();

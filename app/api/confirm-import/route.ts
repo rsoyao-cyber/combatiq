@@ -1,17 +1,22 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import type { ParsedImportData, ParsedTrainingSession } from "@/lib/trainerize-types";
-
-type ConfirmImportBody = ParsedImportData & {
-  training_sessions: ParsedTrainingSession[];
-  filename?: string;
-  force?: boolean;
-  athleteId?: string | null;
-};
+import { ConfirmImportSchema } from "@/lib/schemas";
+import { rateLimits, getClientIp, tooManyRequests } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
-  const body: ConfirmImportBody = await request.json();
-  const { athlete_name, program, workout_templates, training_sessions, filename, force, athleteId: lockedAthleteId } = body;
+  const { success } = await rateLimits.confirmImport.limit(getClientIp(request));
+  if (!success) return tooManyRequests();
+
+  const body = await request.json();
+  const result = ConfirmImportSchema.safeParse(body);
+  if (!result.success) {
+    return NextResponse.json(
+      { error: "Validation failed", details: result.error.issues },
+      { status: 400 }
+    );
+  }
+
+  const { athlete_name, program, workout_templates, training_sessions, filename, force, athleteId: lockedAthleteId } = result.data;
 
   // ── 1. Resolve athlete ───────────────────────────────────────────────────
   let athleteId: string;

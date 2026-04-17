@@ -4,6 +4,8 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getWellbeingTrends, getExerciseProgressions, getInjuryFlags } from "@/lib/analytics";
 import type { TrainingWeekSnapshot, WeekScheduleJson, SlotIntensity } from "@/lib/training-week-types";
 import { getMondayOfWeek, offsetWeekStart } from "@/lib/training-week-types";
+import { GenerateReportSchema } from "@/lib/schemas";
+import { rateLimits, getClientIp, tooManyRequests } from "@/lib/rate-limit";
 
 export const maxDuration = 120;
 
@@ -33,14 +35,19 @@ function getExerciseTrend(values: number[]): "up" | "down" | "flat" {
 // ─── route ───────────────────────────────────────────────────────────────────
 
 export async function POST(request: Request) {
-  const { athleteId, reportType } = await request.json() as {
-    athleteId: string;
-    reportType: "monthly" | "prefight";
-  };
+  const { success } = await rateLimits.generateReport.limit(getClientIp(request));
+  if (!success) return tooManyRequests();
 
-  if (!athleteId || !reportType) {
-    return NextResponse.json({ error: "athleteId and reportType are required" }, { status: 400 });
+  const body = await request.json();
+  const result = GenerateReportSchema.safeParse(body);
+  if (!result.success) {
+    return NextResponse.json(
+      { error: "Validation failed", details: result.error.issues },
+      { status: 400 }
+    );
   }
+
+  const { athleteId, reportType } = result.data;
 
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);

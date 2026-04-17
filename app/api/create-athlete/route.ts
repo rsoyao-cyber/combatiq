@@ -1,29 +1,31 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { CreateAthleteSchema } from "@/lib/schemas";
 
 export async function POST(request: Request) {
-  const body = await request.json() as {
-    name: string;
-    sport: string;
-    weight_class: string;
-    competition_level: string;
-    training_age_years: number;
-  };
+  const body = await request.json();
 
-  const { name, sport, weight_class, competition_level, training_age_years } = body;
-
-  if (!name?.trim() || !sport?.trim()) {
-    return NextResponse.json({ error: "Name and sport are required" }, { status: 400 });
+  const result = CreateAthleteSchema.safeParse(body);
+  if (!result.success) {
+    return NextResponse.json(
+      { error: "Validation failed", details: result.error.issues },
+      { status: 400 }
+    );
   }
+
+  const { name, sport, weight_class, competition_level, training_age_years, clinic_name, trainerize_user_id } =
+    result.data;
 
   const { data, error } = await supabaseAdmin
     .from("athlete")
     .insert({
-      name: name.trim(),
-      sport: sport.trim(),
-      weight_class: weight_class?.trim() ?? null,
-      competition_level: competition_level?.trim() ?? null,
-      training_age_years: training_age_years ?? null,
+      name,
+      sport,
+      weight_class,
+      competition_level,
+      training_age_years,
+      clinic_name: clinic_name ?? null,
+      trainerize_user_id: trainerize_user_id ?? null,
     })
     .select("id")
     .single();
