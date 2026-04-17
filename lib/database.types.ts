@@ -68,6 +68,7 @@ export type Database = {
           motivation: number
           open_notes: string | null
           physical_fatigue: number
+          session_duration_mins: number | null
           session_rpe: number | null
           sleep_hours: number | null
           sleep_quality: number
@@ -89,6 +90,7 @@ export type Database = {
           motivation: number
           open_notes?: string | null
           physical_fatigue: number
+          session_duration_mins?: number | null
           session_rpe?: number | null
           sleep_hours?: number | null
           sleep_quality: number
@@ -110,6 +112,7 @@ export type Database = {
           motivation?: number
           open_notes?: string | null
           physical_fatigue?: number
+          session_duration_mins?: number | null
           session_rpe?: number | null
           sleep_hours?: number | null
           sleep_quality?: number

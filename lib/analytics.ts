@@ -415,7 +415,55 @@ export async function getInjuryFlags(athleteId: string): Promise<InjuryFlag[]> {
   return flags;
 }
 
-// ─── 7. getWeightTrends ──────────────────────────────────────────────────────
+// ─── 7. getSessionLoads ──────────────────────────────────────────────────────
+
+export type SessionLoadPoint = {
+  weekStart: string; // ISO date of Monday
+  load: number;      // total AU for the week (Foster sRPE: (rpe * 2) * duration_mins)
+};
+
+export async function getSessionLoads(
+  athleteId: string,
+  weeks = 8,
+): Promise<SessionLoadPoint[]> {
+  const from = isoDateDaysAgo(weeks * 7);
+
+  const { data, error } = await supabaseAdmin
+    .from("daily_check_in")
+    .select("checkin_date, session_rpe, session_duration_mins")
+    .eq("athlete_id", athleteId)
+    .gte("checkin_date", from)
+    .not("session_rpe", "is", null)
+    .not("session_duration_mins", "is", null)
+    .order("checkin_date", { ascending: true });
+
+  if (error) throw new Error(`getSessionLoads: ${error.message}`);
+
+  // Build a map keyed by ISO week Monday
+  const weekMap = new Map<string, number>();
+
+  for (const row of data ?? []) {
+    const rpe = row.session_rpe as number;
+    const duration = row.session_duration_mins as number;
+    const load = (rpe * 2) * duration;
+    const weekStart = getMondayOf(new Date(row.checkin_date));
+    weekMap.set(weekStart, (weekMap.get(weekStart) ?? 0) + load);
+  }
+
+  // Return sorted ascending, filling in all weeks in the window (including zeros)
+  const result: SessionLoadPoint[] = [];
+  const todayMonday = getMondayOf(new Date());
+  for (let i = weeks - 1; i >= 0; i--) {
+    const d = new Date(todayMonday);
+    d.setDate(d.getDate() - i * 7);
+    const weekStart = d.toISOString().split("T")[0];
+    result.push({ weekStart, load: weekMap.get(weekStart) ?? 0 });
+  }
+
+  return result;
+}
+
+// ─── 8. getWeightTrends ──────────────────────────────────────────────────────
 
 export type WeightActual = { date: string; weight_kg: number };
 export type WeightTarget = { date: string; weight_kg: number };

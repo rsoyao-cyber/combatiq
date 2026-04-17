@@ -102,6 +102,7 @@ export function CheckInForm({
     hitting_nutrition_targets: null as boolean | null,
     sparring_load_rounds: "",
     session_rpe: 5,
+    session_duration_mins: "",
     injury_area: "",
     injury_pain_rating: 0,
     open_notes: "",
@@ -134,6 +135,8 @@ export function CheckInForm({
       sparring_load_rounds:
         fields.sparring_load_rounds !== "" ? Number(fields.sparring_load_rounds) : null,
       session_rpe: fields.session_rpe,
+      session_duration_mins:
+        fields.session_duration_mins !== "" ? Number(fields.session_duration_mins) : null,
       injury_area: fields.injury_area || null,
       injury_pain_rating: fields.injury_area ? fields.injury_pain_rating : null,
       open_notes: fields.open_notes || null,
@@ -256,6 +259,22 @@ export function CheckInForm({
           <SliderField id="session_rpe" label="Session RPE" emoji="📊"
             value={fields.session_rpe} min={1} max={10}
             onChange={(v) => set("session_rpe", v)} />
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="session_duration_mins" className="text-base font-semibold text-foreground">
+              ⏱️ Session duration (minutes)
+            </Label>
+            <input
+              id="session_duration_mins"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={480}
+              placeholder="e.g. 60"
+              value={fields.session_duration_mins}
+              onChange={(e) => set("session_duration_mins", e.target.value)}
+              className="border border-input rounded-lg px-4 py-3 text-foreground bg-background placeholder:text-muted-foreground text-base focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
         </Section>
 
         {/* INJURY */}
