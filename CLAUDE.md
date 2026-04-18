@@ -125,7 +125,9 @@ Always write to power_watts column, never weight_kg.
 
 ## Report share flow
 Generate report -> store in report_share table with uuid token ->
-shareable URL is /report/[token] -> no login required to view
+shareable URL is /report/[token] -> no login required to view ->
+first page load sets viewed_at (read receipt, supabaseAdmin, server component, silent) ->
+PATCH /api/report-share { id } extends expires_at by 30 days from current expiry
 
 ## Training week schedule
 Stored in training_week_snapshot table. One row per athlete per week_start_date
@@ -173,14 +175,14 @@ the Claude prompt (slot counts, adherence, consecutive high-day flags across las
 Model must not fabricate sessions; if alternative is missing, must say so.
 
 ## Athlete dashboard section order
-1. Profile header (name, sport, weight class, RAG badge, monthly goal editor)
-2. Weight tracking (actual vs −1%/week target chart, 8-week window)
-3. Weekly training schedule (primary plan + athlete actuals, week navigation)
-4. Wellbeing trends — last 28 days
-5. Training performance (exercise progressions)
-6. Injury log — last 14 days
-7. Reports (monthly review + pre-fight)
-8. Session history
+1. Page header (name, sport, RAG badge, Monthly Report + Pre-Fight Report buttons, Import PDF button)
+2. Stat strip — current weight, last session load, last session RPE, weeks in program
+3. Monthly goal editor
+4. Two-column grid (left: weight chart, training load chart, menstrual cycle*, wellbeing trends, training performance, injury log | right: sticky weekly schedule panel)
+5. Recent activity — last 7 check-ins
+6. Session history — last 40 sessions
+7. Reports — Data Completeness card + Report History table
+(* female athletes only)
 
 ## Weight tracking
 Athletes log body weight (kg) in the daily check-in form (optional field).
