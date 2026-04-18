@@ -11,11 +11,17 @@ export default async function CheckInPage({
 
   const { data: athlete } = await supabaseAdmin
     .from("athlete")
-    .select("id, name")
+    .select("id, name, sex")
     .eq("id", athleteId)
     .single();
 
   if (!athlete) notFound();
 
-  return <CheckInForm athleteId={athlete.id} athleteName={athlete.name} />;
+  return (
+    <CheckInForm
+      athleteId={athlete.id}
+      athleteName={athlete.name}
+      isFemale={athlete.sex === "female"}
+    />
+  );
 }

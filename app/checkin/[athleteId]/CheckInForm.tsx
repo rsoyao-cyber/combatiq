@@ -84,9 +84,11 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export function CheckInForm({
   athleteId,
   athleteName,
+  isFemale = false,
 }: {
   athleteId: string;
   athleteName: string;
+  isFemale?: boolean;
 }) {
   const today = new Date().toISOString().split("T")[0];
 
@@ -109,6 +111,7 @@ export function CheckInForm({
     weight_kg: "",
   });
 
+  const [logPeriodStart, setLogPeriodStart] = useState(false);
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -146,9 +149,18 @@ export function CheckInForm({
     if (error) {
       setErrorMsg(error.message);
       setStatus("error");
-    } else {
-      setStatus("success");
+      return;
     }
+
+    if (logPeriodStart) {
+      await fetch("/api/log-cycle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ athlete_id: athleteId, cycle_start_date: today }),
+      });
+    }
+
+    setStatus("success");
   }
 
   if (status === "success") {
@@ -336,6 +348,30 @@ export function CheckInForm({
             />
           </div>
         </Section>
+
+        {/* PERIOD START — female athletes only */}
+        {isFemale && (
+          <button
+            type="button"
+            onClick={() => setLogPeriodStart((v) => !v)}
+            className={`flex items-center gap-3 w-full rounded-xl border px-4 py-4 text-left transition-colors ${
+              logPeriodStart
+                ? "bg-primary/10 border-primary text-foreground"
+                : "bg-background border-input text-foreground hover:bg-muted"
+            }`}
+          >
+            <span className={`w-5 h-5 rounded flex items-center justify-center border-2 flex-shrink-0 transition-colors ${
+              logPeriodStart ? "bg-primary border-primary" : "border-input bg-background"
+            }`}>
+              {logPeriodStart && (
+                <svg className="w-3 h-3 text-primary-foreground" viewBox="0 0 12 12" fill="none">
+                  <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              )}
+            </span>
+            <span className="text-base font-semibold">🩸 Log period start today</span>
+          </button>
+        )}
 
         {status === "error" && (
           <Alert variant="destructive">

@@ -17,6 +17,7 @@ import { ReportPanel } from "./ReportPanel";
 import { WeekSchedulePanel } from "./WeekSchedulePanel";
 import { WeightChart } from "./WeightChart";
 import { SessionLoadChart } from "./SessionLoadChart";
+import { CyclePhasePanel } from "./CyclePhasePanel";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -79,6 +80,7 @@ export default async function AthletePage({
     weekSnapshotResult,
     weightTrendsResult,
     sessionLoadsResult,
+    lastCycleResult,
   ] = await Promise.all([
     supabaseAdmin
       .from("athlete")
@@ -120,6 +122,14 @@ export default async function AthletePage({
 
     getWeightTrends(id, 8),
     getSessionLoads(id, 8),
+
+    supabaseAdmin
+      .from("menstrual_cycle")
+      .select("cycle_start_date, cycle_length_days")
+      .eq("athlete_id", id)
+      .order("cycle_start_date", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
 
   if (!athleteResult.data) notFound();
@@ -193,6 +203,16 @@ export default async function AthletePage({
       <Section title="Training load — last 8 weeks">
         <SessionLoadChart loads={sessionLoadsResult} />
       </Section>
+
+      {/* Menstrual cycle — female athletes only */}
+      {athlete.sex === "female" && (
+        <Section title="Menstrual cycle">
+          <CyclePhasePanel
+            lastCycleStart={lastCycleResult.data?.cycle_start_date ?? null}
+            cycleLength={lastCycleResult.data?.cycle_length_days ?? 28}
+          />
+        </Section>
+      )}
 
       {/* Weekly training schedule */}
       <Section title="Weekly training schedule">

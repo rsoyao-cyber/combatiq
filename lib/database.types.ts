@@ -242,6 +242,38 @@ export type Database = {
           },
         ]
       }
+      menstrual_cycle: {
+        Row: {
+          athlete_id: string
+          created_at: string
+          cycle_length_days: number
+          cycle_start_date: string
+          id: string
+        }
+        Insert: {
+          athlete_id: string
+          created_at?: string
+          cycle_length_days?: number
+          cycle_start_date: string
+          id?: string
+        }
+        Update: {
+          athlete_id?: string
+          created_at?: string
+          cycle_length_days?: number
+          cycle_start_date?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "menstrual_cycle_athlete_id_fkey"
+            columns: ["athlete_id"]
+            isOneToOne: false
+            referencedRelation: "athlete"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       monthly_goal: {
         Row: {
           athlete_id: string
