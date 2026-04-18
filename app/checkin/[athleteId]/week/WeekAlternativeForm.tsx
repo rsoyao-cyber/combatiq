@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { WeekScheduleJson, WeekDay, WeekSlot, SlotIntensity, Adherence } from "@/lib/training-week-types";
 import { emptyWeekSchedule, computeIntensityDisplay } from "@/lib/training-week-types";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -48,14 +49,13 @@ function SlotRow({
     <div className="flex flex-col gap-1.5">
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">{period}</p>
       <div className="flex gap-2">
-        <input
-          type="text"
+        <Input
           value={isEmpty ? "" : slot.label}
           placeholder="—"
           maxLength={200}
           aria-label={`${period} session description for day ${dayIndex + 1}`}
           onChange={(e) => onChange({ ...slot, label: e.target.value || "—" })}
-          className="flex-1 border border-input rounded-lg px-3 py-2 text-foreground bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          className="flex-1"
         />
         <div className="flex rounded-lg overflow-hidden border border-input text-xs font-semibold">
           {INTENSITY_OPTIONS.map(({ value, label }) => (
@@ -120,14 +120,12 @@ function DayCard({
 
         <div className="flex flex-col gap-1.5">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Session types</p>
-          <input
-            type="text"
+          <Input
             value={day.session_types}
             placeholder="e.g. Strength + S&C"
             maxLength={500}
             aria-label={`Session types for ${day.day}`}
             onChange={(e) => onChange({ ...day, session_types: e.target.value })}
-            className="w-full border border-input rounded-lg px-3 py-2 text-foreground bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
       </CardContent>
@@ -165,7 +163,7 @@ export function WeekAlternativeForm({
     setSchedule({ days: schedule.days.map((d, idx) => (idx === i ? next : d)) });
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
     setStatus("submitting");
     setErrorMsg("");
@@ -206,9 +204,9 @@ export function WeekAlternativeForm({
   return (
     <div className="min-h-screen bg-background">
       <header className="bg-primary text-primary-foreground px-5 pb-6" style={{ paddingTop: "max(2.5rem, env(safe-area-inset-top))" }}>
-        <p className="text-sm text-primary-foreground/70 mb-1">Week of {weekLabel}</p>
-        <h1 className="text-2xl font-bold">{athleteName}</h1>
-        <p className="text-primary-foreground/70 text-sm mt-1">What did your week actually look like?</p>
+        <p className="text-sm text-primary-foreground/70 mb-1">{weekLabel}</p>
+        <h1 className="text-2xl font-bold">Log your actual week</h1>
+        <p className="text-primary-foreground/70 text-sm mt-1">Fill in what you actually did this week</p>
       </header>
 
       <form

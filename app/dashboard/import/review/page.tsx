@@ -250,8 +250,14 @@ export default function ReviewPage() {
         <p className="text-muted-foreground text-sm mt-1">File: {filename}</p>
       </div>
 
-      {/* ── Summary stats ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      {/* ── Stat strip ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <Card className="sm:col-span-1">
+          <CardContent className="pt-4 pb-4">
+            <p className="text-base font-bold text-foreground truncate">{data.athlete_name}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Athlete</p>
+          </CardContent>
+        </Card>
         {[
           { label: "Program", value: 1 },
           { label: "Templates", value: data.workout_templates.length },
@@ -269,7 +275,7 @@ export default function ReviewPage() {
 
       {/* ── 1. Program details ── */}
       <div className="flex flex-col gap-3">
-        <h2 className="text-sm font-bold text-foreground">Program details</h2>
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Program details</h2>
         <Card>
           <CardContent className="pt-4 pb-4 grid grid-cols-2 sm:grid-cols-3 gap-4">
             <Field label="Program name" value={data.program.name}
@@ -291,7 +297,7 @@ export default function ReviewPage() {
       {/* ── 2. Workout templates ── */}
       <div className="flex flex-col gap-3">
         <h2 className="text-sm font-bold text-foreground">
-          Workout templates
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Workout templates</span>
           <Badge variant="outline" className="ml-2 text-xs font-normal">{data.workout_templates.length}</Badge>
         </h2>
         <div className="flex flex-col gap-2">
@@ -304,7 +310,7 @@ export default function ReviewPage() {
       {/* ── 3. Training sessions ── */}
       <div className="flex flex-col gap-3">
         <h2 className="text-sm font-bold text-foreground">
-          Training sessions
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Training sessions</span>
           <Badge variant="outline" className="ml-2 text-xs font-normal">{sessions.length}</Badge>
         </h2>
         <Card>
@@ -367,13 +373,22 @@ export default function ReviewPage() {
           </Alert>
         )}
 
-        <Button
-          onClick={() => handleConfirm()}
-          disabled={submitStatus === "loading" || submitStatus === "duplicate"}
-          className="self-start"
-        >
-          {submitStatus === "loading" ? "Importing…" : "Confirm Import"}
-        </Button>
+        <div className="flex gap-3">
+          <Button
+            onClick={() => handleConfirm()}
+            disabled={submitStatus === "loading" || submitStatus === "duplicate"}
+            className="font-semibold"
+          >
+            {submitStatus === "loading" ? "Importing…" : "Confirm import"}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => router.push("/dashboard/import")}
+            disabled={submitStatus === "loading"}
+          >
+            Cancel
+          </Button>
+        </div>
       </div>
     </div>
   );
