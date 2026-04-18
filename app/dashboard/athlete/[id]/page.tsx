@@ -14,6 +14,7 @@ import { GoalEditor } from "./GoalEditor";
 import { WellbeingCharts } from "./WellbeingCharts";
 import { PerformanceCharts } from "./PerformanceCharts";
 import { ReportPanel } from "./ReportPanel";
+import { ReportGenerateButtons } from "./ReportGenerateButtons";
 import { WeekSchedulePanel } from "./WeekSchedulePanel";
 import { WeightChart } from "./WeightChart";
 import { SessionLoadChart } from "./SessionLoadChart";
@@ -153,6 +154,17 @@ export default async function AthletePage({
   twentyEightDaysAgo.setDate(twentyEightDaysAgo.getDate() - 28);
   const cutoff28 = twentyEightDaysAgo.toISOString().split("T")[0];
 
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const cutoff30 = thirtyDaysAgo.toISOString().split("T")[0];
+
+  // Last 4 Mondays (including current week)
+  const last4Mondays = Array.from({ length: 4 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - i * 7);
+    return getMondayOfWeek(d);
+  });
+
   const [
     athleteResult,
     goalResult,
@@ -166,6 +178,9 @@ export default async function AthletePage({
     sessionLoadsResult,
     lastCycleResult,
     latestProgramResult,
+    checkInCount30dResult,
+    weekSchedule4wResult,
+    reportHistoryResult,
   ] = await Promise.all([
     supabaseAdmin
       .from("athlete")
@@ -225,6 +240,28 @@ export default async function AthletePage({
       .order("start_date", { ascending: false })
       .limit(1)
       .maybeSingle(),
+
+    // Check-in count — last 30 days
+    supabaseAdmin
+      .from("daily_check_in")
+      .select("*", { count: "exact", head: true })
+      .eq("athlete_id", id)
+      .gte("checkin_date", cutoff30),
+
+    // Week snapshots — last 4 weeks
+    supabaseAdmin
+      .from("training_week_snapshot")
+      .select("week_start_date", { count: "exact", head: true })
+      .eq("athlete_id", id)
+      .in("week_start_date", last4Mondays),
+
+    // Report history — last 10
+    supabaseAdmin
+      .from("report_share")
+      .select("id, token, report_type, created_at, expires_at, viewed_at")
+      .eq("athlete_id", id)
+      .order("created_at", { ascending: false })
+      .limit(10),
   ]);
 
   if (!athleteResult.data) notFound();
@@ -235,6 +272,11 @@ export default async function AthletePage({
   const injuries   = injuryResult;
   const sessions   = sessionsResult.data ?? [];
   const weekSnapshot = (weekSnapshotResult.data ?? null) as TrainingWeekSnapshot | null;
+
+  const checkInCount30d    = checkInCount30dResult.count ?? 0;
+  const weekScheduleCount4w = weekSchedule4wResult.count ?? 0;
+  const lastSessionDate    = sessions[0]?.session_date ?? null;
+  const reportHistory      = reportHistoryResult.data ?? [];
 
   // ── RAG ─────────────────────────────────────────────────────────────────────
   const avgLast7 =
@@ -326,6 +368,7 @@ export default async function AthletePage({
               {ragStatus.toUpperCase()}
             </Badge>
           )}
+          <ReportGenerateButtons athleteId={id} />
           <Link
             href={`/dashboard/import?athleteId=${id}&athleteName=${encodeURIComponent(athlete.name)}`}
             className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-1.5")}
@@ -587,7 +630,13 @@ export default async function AthletePage({
 
       {/* ── Reports ───────────────────────────────────────────────────────────── */}
       <Section title="Reports">
-        <ReportPanel athleteId={id} />
+        <ReportPanel
+          athleteId={id}
+          checkInCount30d={checkInCount30d}
+          weekScheduleCount4w={weekScheduleCount4w}
+          lastSessionDate={lastSessionDate}
+          reportHistory={reportHistory}
+        />
       </Section>
     </div>
   );

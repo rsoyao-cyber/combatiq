@@ -315,6 +315,7 @@ export type Database = {
           report_json: Json
           report_type: string | null
           token: string | null
+          viewed_at: string | null
         }
         Insert: {
           athlete_id?: string | null
@@ -324,6 +325,7 @@ export type Database = {
           report_json: Json
           report_type?: string | null
           token?: string | null
+          viewed_at?: string | null
         }
         Update: {
           athlete_id?: string | null
@@ -333,6 +335,7 @@ export type Database = {
           report_json?: Json
           report_type?: string | null
           token?: string | null
+          viewed_at?: string | null
         }
         Relationships: [
           {

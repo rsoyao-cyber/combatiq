@@ -1,285 +1,265 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Separator } from "@/components/ui/separator";
-import { Loader2, AlertCircle, ExternalLink, Copy } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
+import { ExternalLink, Copy, RefreshCw, Check } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-type ReportType = "monthly" | "prefight";
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-type MonthlyReport = {
-  summary: string;
-  performance_narrative: { power: string; strength: string; conditioning: string };
-  wellbeing_summary: string;
-  strengths: string[];
-  development_areas: string[];
-  next_steps: string[];
-};
-
-type PrefightReport = {
-  readiness_statement: string;
-  preparation_highlights: string[];
-  physical_benchmarks: { metric: string; value: string; interpretation: string }[];
-  camp_summary: string;
-};
-
-function ItemList({
-  items,
-  variant = "default",
-}: {
-  items: string[];
-  variant?: "green" | "amber" | "blue" | "default";
-}) {
-  const styles = {
-    green:   "bg-emerald-50 text-emerald-800 border-emerald-200",
-    amber:   "bg-amber-50  text-amber-800  border-amber-200",
-    blue:    "bg-blue-50   text-blue-800   border-blue-200",
-    default: "bg-muted     text-foreground  border-border",
-  };
-  return (
-    <ul className="flex flex-col gap-2">
-      {items.map((item, i) => (
-        <li key={i} className={`text-sm border rounded-lg px-3 py-2 ${styles[variant]}`}>
-          {item}
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function MonthlyPreview({ report }: { report: MonthlyReport }) {
-  return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-          Monthly Review
-        </CardTitle>
-        <p className="text-sm leading-relaxed text-foreground">{report.summary}</p>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-5">
-        <Separator />
-        <div>
-          <p className="text-sm font-bold mb-3">Performance</p>
-          <div className="flex flex-col gap-3">
-            {Object.entries(report.performance_narrative).map(([key, val]) => (
-              <div key={key}>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1 capitalize">{key}</p>
-                <p className="text-sm leading-relaxed">{val}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-        <Separator />
-        <div>
-          <p className="text-sm font-bold mb-2">Wellbeing</p>
-          <p className="text-sm leading-relaxed">{report.wellbeing_summary}</p>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <p className="text-sm font-bold mb-2">Strengths</p>
-            <ItemList items={report.strengths} variant="green" />
-          </div>
-          <div>
-            <p className="text-sm font-bold mb-2">Development areas</p>
-            <ItemList items={report.development_areas} variant="amber" />
-          </div>
-        </div>
-        <div>
-          <p className="text-sm font-bold mb-2">Next steps</p>
-          <ItemList items={report.next_steps} />
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function PrefightPreview({ report }: { report: PrefightReport }) {
-  return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-          Pre-Fight Readiness
-        </CardTitle>
-        <p className="text-sm leading-relaxed">{report.readiness_statement}</p>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-5">
-        <Separator />
-        <div>
-          <p className="text-sm font-bold mb-2">Preparation highlights</p>
-          <ItemList items={report.preparation_highlights} variant="green" />
-        </div>
-        <div>
-          <p className="text-sm font-bold mb-2">Physical benchmarks</p>
-          <div className="flex flex-col gap-2">
-            {report.physical_benchmarks.map((b, i) => (
-              <div key={i} className="border border-blue-200 bg-blue-50 rounded-lg px-4 py-3">
-                <div className="flex items-baseline gap-2 mb-1">
-                  <span className="text-xs font-semibold text-blue-600 uppercase tracking-wide">{b.metric}</span>
-                  <span className="text-sm font-bold text-blue-900">{b.value}</span>
-                </div>
-                <p className="text-xs text-blue-700 leading-relaxed">{b.interpretation}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div>
-          <p className="text-sm font-bold mb-2">Camp summary</p>
-          <p className="text-sm leading-relaxed">{report.camp_summary}</p>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function ReportSection({
-  buttonLabel,
-  buttonClassName,
-  status,
-  error,
-  onGenerate,
-  children,
-  token,
-  athleteId,
-  reportType,
-}: {
-  buttonLabel: string;
-  buttonClassName: string;
-  status: "idle" | "loading" | "success" | "error";
-  error: string;
-  onGenerate: () => void;
-  children: React.ReactNode;
+type ReportShare = {
+  id: string;
   token: string | null;
+  report_type: string | null;
+  created_at: string | null;
+  expires_at: string | null;
+  viewed_at: string | null;
+};
+
+export type ReportPanelProps = {
   athleteId: string;
-  reportType: ReportType;
-}) {
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <Button
-          onClick={onGenerate}
-          disabled={status === "loading"}
-          className={buttonClassName}
-        >
-          {status === "loading" ? (
-            <><Loader2 className="w-4 h-4 animate-spin" /> Generating…</>
-          ) : buttonLabel}
-        </Button>
-        {status === "loading" && (
-          <p className="text-xs text-muted-foreground animate-pulse">
-            Analysing data, this takes ~15–30 seconds…
-          </p>
-        )}
-      </div>
+  checkInCount30d: number;
+  weekScheduleCount4w: number;
+  lastSessionDate: string | null;
+  reportHistory: ReportShare[];
+};
 
-      {status === "error" && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-      {status === "success" && children && (
-        <div className="flex flex-col gap-3">
-          {children}
-          <div className="flex flex-wrap gap-3 items-center">
-            {reportType === "monthly" && (
-              <Link href={`/dashboard/athlete/${athleteId}/report?type=monthly`} className={cn(buttonVariants({ variant: "link" }), "p-0 h-auto text-sm font-semibold gap-1")}>
-                Open full report view <ExternalLink className="w-3 h-3" />
-              </Link>
-            )}
-            {token && (
-              <>
-                <Link href={`/report/${token}`} target="_blank" className={cn(buttonVariants({ variant: "link" }), "p-0 h-auto text-sm font-semibold text-muted-foreground gap-1")}>
-                  Shareable link <ExternalLink className="w-3 h-3" />
-                </Link>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="gap-1.5 text-xs text-muted-foreground"
-                  onClick={() => navigator.clipboard.writeText(`${window.location.origin}/report/${token}`)}
-                >
-                  <Copy className="w-3 h-3" /> Copy link
-                </Button>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
+function formatDate(iso: string | null) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 
-export function ReportPanel({ athleteId }: { athleteId: string }) {
-  const [monthlyStatus, setMonthlyStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
-  const [prefightStatus, setPrefightStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
-  const [monthlyReport, setMonthlyReport] = useState<MonthlyReport | null>(null);
-  const [prefightReport, setPrefightReport] = useState<PrefightReport | null>(null);
-  const [monthlyToken, setMonthlyToken] = useState<string | null>(null);
-  const [prefightToken, setPrefightToken] = useState<string | null>(null);
-  const [monthlyError, setMonthlyError] = useState("");
-  const [prefightError, setPrefightError] = useState("");
+function formatExpiry(expiresAt: string | null): { label: string; expired: boolean } {
+  if (!expiresAt) return { label: "No expiry", expired: false };
+  const diff = new Date(expiresAt).getTime() - Date.now();
+  if (diff <= 0) return { label: "Expired", expired: true };
+  const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+  return { label: `Expires in ${days}d`, expired: false };
+}
 
-  async function handleGenerate(reportType: ReportType) {
-    if (reportType === "monthly") {
-      setMonthlyStatus("loading");
-      setMonthlyReport(null);
-      setMonthlyError("");
-    } else {
-      setPrefightStatus("loading");
-      setPrefightReport(null);
-      setPrefightError("");
-    }
+// ─── Extend button ────────────────────────────────────────────────────────────
 
-    const res = await fetch("/api/generate-report", {
-      method: "POST",
+function ExtendButton({ id }: { id: string }) {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+
+  async function handleExtend() {
+    setLoading(true);
+    await fetch("/api/report-share", {
+      method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ athleteId, reportType }),
+      body: JSON.stringify({ id }),
     });
-
-    const json = await res.json();
-
-    if (!res.ok) {
-      if (reportType === "monthly") { setMonthlyError(json.error ?? "Unknown error"); setMonthlyStatus("error"); }
-      else { setPrefightError(json.error ?? "Unknown error"); setPrefightStatus("error"); }
-    } else {
-      if (reportType === "monthly") { setMonthlyReport(json.report as MonthlyReport); setMonthlyToken(json.shareToken ?? null); setMonthlyStatus("success"); }
-      else { setPrefightReport(json.report as PrefightReport); setPrefightToken(json.shareToken ?? null); setPrefightStatus("success"); }
-    }
+    router.refresh();
+    setLoading(false);
   }
 
   return (
-    <div className="flex flex-col gap-8">
-      <ReportSection
-        buttonLabel="Generate Monthly Review"
-        buttonClassName="font-bold gap-2"
-        status={monthlyStatus}
-        error={monthlyError}
-        onGenerate={() => handleGenerate("monthly")}
-        token={monthlyToken}
-        athleteId={athleteId}
-        reportType="monthly"
-      >
-        {monthlyReport && <MonthlyPreview report={monthlyReport} />}
-      </ReportSection>
+    <Button
+      variant="ghost"
+      size="sm"
+      className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
+      onClick={handleExtend}
+      disabled={loading}
+    >
+      <RefreshCw className={cn("w-3 h-3", loading && "animate-spin")} />
+      +30d
+    </Button>
+  );
+}
 
-      <Separator />
+// ─── Copy button ──────────────────────────────────────────────────────────────
 
-      <ReportSection
-        buttonLabel="Generate Pre-Fight Report"
-        buttonClassName="font-bold gap-2"
-        status={prefightStatus}
-        error={prefightError}
-        onGenerate={() => handleGenerate("prefight")}
-        token={prefightToken}
-        athleteId={athleteId}
-        reportType="prefight"
-      >
-        {prefightReport && <PrefightPreview report={prefightReport} />}
-      </ReportSection>
+function CopyLinkButton({ token }: { token: string }) {
+  const [copied, setCopied] = useState(false);
+
+  function handleCopy() {
+    navigator.clipboard.writeText(`${window.location.origin}/report/${token}`);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
+      onClick={handleCopy}
+    >
+      {copied ? (
+        <><Check className="w-3 h-3 text-emerald-600" /> Copied</>
+      ) : (
+        <><Copy className="w-3 h-3" /> Copy</>
+      )}
+    </Button>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
+export function ReportPanel({
+  checkInCount30d,
+  weekScheduleCount4w,
+  lastSessionDate,
+  reportHistory,
+}: ReportPanelProps) {
+  const checkInPct = Math.min(100, Math.round((checkInCount30d / 30) * 100));
+
+  return (
+    <div className="flex flex-col gap-5">
+
+      {/* ── Data completeness card ────────────────────────────────────────────── */}
+      <Card className="shadow-sm">
+        <CardHeader className="pb-3 pt-5">
+          <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Data completeness
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4 pb-5">
+          {/* Progress bar */}
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted-foreground">Check-ins — last 30 days</span>
+              <span className="text-xs font-semibold text-foreground tabular-nums">
+                {checkInCount30d} / 30
+              </span>
+            </div>
+            <div className="h-2 rounded-full bg-muted overflow-hidden">
+              <div
+                className={cn(
+                  "h-full rounded-full transition-all",
+                  checkInPct >= 80
+                    ? "bg-emerald-500"
+                    : checkInPct >= 50
+                    ? "bg-amber-400"
+                    : "bg-red-400",
+                )}
+                style={{ width: `${checkInPct}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Stats row */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-xs text-muted-foreground">Last session</span>
+              <span className="text-sm font-medium text-foreground">
+                {lastSessionDate ?? "—"}
+              </span>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-xs text-muted-foreground">Weeks scheduled</span>
+              <span className="text-sm font-medium text-foreground">
+                {weekScheduleCount4w} / 4
+              </span>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-xs text-muted-foreground">Fill rate</span>
+              <span className={cn(
+                "text-sm font-bold",
+                checkInPct >= 80 ? "text-emerald-600"
+                : checkInPct >= 50 ? "text-amber-600"
+                : "text-red-600",
+              )}>
+                {checkInPct}%
+              </span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── Report history ────────────────────────────────────────────────────── */}
+      <Card className="shadow-sm">
+        <CardHeader className="pb-3 pt-5">
+          <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Report history
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0 pb-2">
+          {reportHistory.length === 0 ? (
+            <p className="text-sm text-muted-foreground px-6 pb-4">
+              No reports generated yet. Use the buttons above to generate one.
+            </p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Generated</TableHead>
+                  <TableHead>Expires</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {reportHistory.map((share) => {
+                  const { label: expiryLabel, expired } = formatExpiry(share.expires_at);
+                  return (
+                    <TableRow key={share.id}>
+                      <TableCell className="font-medium text-sm capitalize">
+                        {share.report_type === "prefight" ? "Pre-Fight" : "Monthly"}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground tabular-nums">
+                        {formatDate(share.created_at)}
+                      </TableCell>
+                      <TableCell>
+                        <span className={cn(
+                          "text-xs font-medium",
+                          expired ? "text-red-600" : "text-muted-foreground",
+                        )}>
+                          {expiryLabel}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={
+                            share.viewed_at
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200 text-xs"
+                              : "bg-muted text-muted-foreground text-xs"
+                          }
+                        >
+                          {share.viewed_at ? "Viewed" : "Not opened"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-0.5">
+                          {share.token && (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
+                                onClick={() => window.open(`/report/${share.token}`, "_blank")}
+                              >
+                                <ExternalLink className="w-3 h-3" /> View
+                              </Button>
+                              <CopyLinkButton token={share.token} />
+                            </>
+                          )}
+                          <ExtendButton id={share.id} />
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

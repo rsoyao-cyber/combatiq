@@ -159,7 +159,7 @@ export default async function SharedReportPage({
 
   const { data: share } = await supabaseAdmin
     .from("report_share")
-    .select("athlete_id, report_type, report_json, created_at, expires_at")
+    .select("athlete_id, report_type, report_json, created_at, expires_at, viewed_at")
     .eq("token", token)
     .single();
 
@@ -172,6 +172,16 @@ export default async function SharedReportPage({
         <p className="text-zinc-500 text-sm">This report link has expired.</p>
       </div>
     );
+  }
+
+  // Record first view silently (no await needed — fire and forget is fine here)
+  if (!share.viewed_at) {
+    supabaseAdmin
+      .from("report_share")
+      .update({ viewed_at: new Date().toISOString() })
+      .eq("token", token)
+      .is("viewed_at", null)
+      .then(() => {});
   }
 
   let athleteName = "";
