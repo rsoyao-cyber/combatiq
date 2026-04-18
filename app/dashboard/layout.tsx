@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
-import { Separator } from "@/components/ui/separator";
+import { Activity } from "lucide-react";
+import { DashboardSidebar } from "@/components/DashboardSidebar";
 import { SignOutButton } from "@/components/SignOutButton";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -15,38 +16,47 @@ export default async function DashboardLayout({ children }: { children: React.Re
         getAll() { return cookieStore.getAll(); },
         setAll() {},
       },
-    }
+    },
   );
 
   const { data: { user } } = await supabase.auth.getUser();
 
   return (
-    <div className="min-h-screen bg-muted/40 flex flex-col">
-      <header className="bg-primary text-primary-foreground sticky top-0 z-50 shadow-sm">
-        <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
-          <span className="font-bold tracking-tight text-lg select-none">
-            CombatIQ
-          </span>
-          <nav className="flex items-center gap-1 text-sm font-medium">
+    <div className="flex min-h-screen bg-muted/30">
+      {/* ── Persistent left sidebar (desktop) ───────────────────────────── */}
+      <DashboardSidebar email={user?.email} />
+
+      {/* ── Mobile top bar ───────────────────────────────────────────────── */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-20 bg-card border-b border-border">
+        <div className="h-14 px-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
+              <Activity className="w-3.5 h-3.5 text-primary-foreground" />
+            </div>
+            <span className="font-bold text-foreground">CombatIQ</span>
+          </div>
+          <nav className="flex items-center gap-1 text-sm">
             <Link
               href="/dashboard"
-              className="px-3 py-1.5 rounded-md text-primary-foreground/70 hover:text-primary-foreground hover:bg-primary-foreground/10 transition-colors"
+              className="px-3 py-1.5 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             >
-              Dashboard
+              Squad
             </Link>
-            <Separator orientation="vertical" className="h-4 bg-primary-foreground/20 mx-1" />
             <Link
-              href="/settings"
-              className="px-3 py-1.5 rounded-md text-primary-foreground/70 hover:text-primary-foreground hover:bg-primary-foreground/10 transition-colors"
+              href="/dashboard/import"
+              className="px-3 py-1.5 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             >
-              Settings
+              Import
             </Link>
-            <Separator orientation="vertical" className="h-4 bg-primary-foreground/20 mx-1" />
             <SignOutButton email={user?.email} />
           </nav>
         </div>
-      </header>
-      <main className="flex-1">{children}</main>
+      </div>
+
+      {/* ── Main content ─────────────────────────────────────────────────── */}
+      <main className="flex-1 lg:pl-64 pt-14 lg:pt-0 min-h-screen">
+        {children}
+      </main>
     </div>
   );
 }
