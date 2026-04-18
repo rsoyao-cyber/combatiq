@@ -3,13 +3,6 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -24,7 +17,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
     setLoading(true);
@@ -45,20 +38,42 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-muted/40 px-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold tracking-tight">
+    <div className="min-h-screen flex">
+      {/* ── Left hero panel (desktop only) ─────────────────────────────── */}
+      <div className="hidden lg:flex lg:w-1/2 flex-col justify-between p-12"
+        style={{ background: "linear-gradient(135deg, var(--primary) 0%, #6d28d9 100%)" }}>
+        <div>
+          <span className="text-white font-bold text-2xl tracking-tight select-none">
             CombatIQ
-          </CardTitle>
-          <CardDescription>
-            Sign in to access the practitioner dashboard
-          </CardDescription>
-        </CardHeader>
+          </span>
+        </div>
+        <div className="space-y-4">
+          <h1 className="text-4xl font-extrabold text-white leading-tight">
+            Performance intelligence<br />for combat athletes.
+          </h1>
+          <p className="text-white/70 text-lg max-w-sm">
+            Track training load, wellbeing, and readiness — all in one place for you and your squad.
+          </p>
+        </div>
+        <p className="text-white/40 text-sm">© {new Date().getFullYear()} CombatIQ</p>
+      </div>
 
-        <CardContent>
+      {/* ── Right form panel ────────────────────────────────────────────── */}
+      <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 bg-background">
+        {/* Mobile logo */}
+        <div className="lg:hidden mb-8 text-center">
+          <span className="text-2xl font-bold tracking-tight text-primary">CombatIQ</span>
+          <p className="text-sm text-muted-foreground mt-1">Performance intelligence for combat athletes</p>
+        </div>
+
+        <div className="w-full max-w-sm space-y-6">
+          <div className="space-y-1">
+            <h2 className="text-2xl font-bold tracking-tight text-foreground">Sign in</h2>
+            <p className="text-sm text-muted-foreground">Access your practitioner dashboard</p>
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
@@ -71,8 +86,17 @@ export default function LoginPage() {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Password</Label>
+                <button
+                  type="button"
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  tabIndex={-1}
+                >
+                  Forgot password?
+                </button>
+              </div>
               <Input
                 id="password"
                 type="password"
@@ -89,12 +113,12 @@ export default function LoginPage() {
               </p>
             )}
 
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Signing in..." : "Sign in"}
+            <Button type="submit" className="w-full font-semibold" disabled={loading}>
+              {loading ? "Signing in…" : "Sign in"}
             </Button>
           </form>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

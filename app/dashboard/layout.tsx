@@ -1,8 +1,25 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
+import { createServerClient } from "@supabase/ssr";
 import { Separator } from "@/components/ui/separator";
 import { SignOutButton } from "@/components/SignOutButton";
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const cookieStore = await cookies();
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() { return cookieStore.getAll(); },
+        setAll() {},
+      },
+    }
+  );
+
+  const { data: { user } } = await supabase.auth.getUser();
+
   return (
     <div className="min-h-screen bg-muted/40 flex flex-col">
       <header className="bg-primary text-primary-foreground sticky top-0 z-50 shadow-sm">
@@ -25,7 +42,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               Settings
             </Link>
             <Separator orientation="vertical" className="h-4 bg-primary-foreground/20 mx-1" />
-            <SignOutButton />
+            <SignOutButton email={user?.email} />
           </nav>
         </div>
       </header>
