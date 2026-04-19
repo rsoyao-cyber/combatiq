@@ -18,10 +18,11 @@ const DOMAIN_LABELS: Record<string, string> = {
 
 const TREND_ICON: Record<string, string> = { up: "↑", down: "↓", flat: "→" };
 
-function lineColor(avg7: number): string {
-  if (avg7 < 3) return "#ef4444"; // red
-  if (avg7 < 4) return "#f59e0b"; // amber
-  return "#10b981";               // green
+function lineColor(avg7: number | null): string {
+  if (avg7 == null) return "#a1a1aa"; // zinc — no recent data
+  if (avg7 < 3) return "#ef4444";    // red
+  if (avg7 < 4) return "#f59e0b";    // amber
+  return "#10b981";                  // green
 }
 
 type CheckInRow = {
@@ -59,7 +60,7 @@ export function WellbeingCharts({
               </p>
               <div className="flex items-center gap-1.5">
                 <span className="text-xs font-bold" style={{ color }}>
-                  {t.last7Avg.toFixed(1)}
+                  {t.last7Avg != null ? t.last7Avg.toFixed(1) : "—"}
                 </span>
                 <span className="text-xs text-zinc-400">
                   {TREND_ICON[t.trend]}

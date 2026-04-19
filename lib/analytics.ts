@@ -21,8 +21,8 @@ export type TrendDirection = "up" | "down" | "flat";
 export type DomainTrend = {
   domain: Domain;
   average: number;          // rolling average over the full requested window
-  last7Avg: number;         // average for the most recent 7 days
-  prior7Avg: number;        // average for the 7 days before that
+  last7Avg: number | null;  // average for the most recent 7 days (null = no data)
+  prior7Avg: number | null; // average for the 7 days before that (null = no data)
   trend: TrendDirection;
   dataPoints: number;       // number of check-ins in the window
 };
@@ -86,6 +86,12 @@ function avg(values: number[]): number {
   return values.reduce((a, b) => a + b, 0) / values.length;
 }
 
+function nullableAvg(values: (number | null)[]): number | null {
+  const clean = values.filter((v): v is number => v != null);
+  if (clean.length === 0) return null;
+  return clean.reduce((a, b) => a + b, 0) / clean.length;
+}
+
 function isoDateDaysAgo(n: number): string {
   const d = new Date();
   d.setDate(d.getDate() - n);
@@ -138,20 +144,23 @@ export async function getWellbeingTrends(
   );
 
   const domains: DomainTrend[] = WELLBEING_DOMAINS.map((domain) => {
-    const allValues = rows.map((r) => r[domain] as number);
-    const last7Values = last7Rows.map((r) => r[domain] as number);
-    const prior7Values = prior7Rows.map((r) => r[domain] as number);
+    const allValues = rows.map((r) => r[domain]);
+    const last7Values = last7Rows.map((r) => r[domain]);
+    const prior7Values = prior7Rows.map((r) => r[domain]);
 
-    const last7Avg = avg(last7Values);
-    const prior7Avg = avg(prior7Values);
+    const last7Avg = nullableAvg(last7Values);
+    const prior7Avg = nullableAvg(prior7Values);
 
     return {
       domain,
-      average: avg(allValues),
+      average: nullableAvg(allValues) ?? 0,
       last7Avg,
       prior7Avg,
-      trend: prior7Values.length > 0 ? trendDirection(last7Avg, prior7Avg) : "flat",
-      dataPoints: allValues.length,
+      trend:
+        last7Avg != null && prior7Avg != null
+          ? trendDirection(last7Avg, prior7Avg)
+          : "flat",
+      dataPoints: allValues.filter((v) => v != null).length,
     };
   });
 

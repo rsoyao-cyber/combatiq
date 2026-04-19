@@ -18,7 +18,8 @@ function avg(values: number[]): number {
   return values.reduce((a, b) => a + b, 0) / values.length;
 }
 
-function round2(n: number) {
+function round2(n: number | null) {
+  if (n == null) return null;
   return Math.round(n * 100) / 100;
 }
 

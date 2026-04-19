@@ -279,9 +279,10 @@ export default async function AthletePage({
   const reportHistory      = reportHistoryResult.data ?? [];
 
   // ── RAG ─────────────────────────────────────────────────────────────────────
+  const domainsWithData = trendsResult.domains.filter((d) => d.last7Avg != null);
   const avgLast7 =
-    trendsResult.domains.length > 0
-      ? trendsResult.domains.reduce((s, d) => s + d.last7Avg, 0) / trendsResult.domains.length
+    domainsWithData.length > 0
+      ? domainsWithData.reduce((s, d) => s + (d.last7Avg ?? 0), 0) / domainsWithData.length
       : null;
   const ragStatus = avgLast7 == null ? null : avgLast7 < 3 ? "red" : avgLast7 < 4 ? "amber" : "green";
 
