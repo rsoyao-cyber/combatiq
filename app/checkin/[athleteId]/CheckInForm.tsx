@@ -6,19 +6,20 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Plus, X } from "lucide-react";
 
 // ─── Slider ───────────────────────────────────────────────────────────────────
 
 const SLIDER_LABELS: Record<string, [string, string]> = {
-  sleep_quality:      ["Very poor",  "Excellent"],
-  physical_fatigue:   ["Fresh",      "Exhausted"],
-  mental_focus:       ["Scattered",  "Locked in"],
-  motivation:         ["None",       "Fired up"],
-  mood:               ["Low",        "Great"],
-  stress:             ["Calm",       "Overwhelmed"],
-  diet_quality:       ["Poor",       "Perfect"],
-  injury_pain_rating: ["No pain",    "Worst pain"],
+  sleep_quality:      ["Very poor",    "Excellent"],
+  physical_fatigue:   ["Exhausted",    "Fresh"],
+  mental_focus:       ["Scattered",    "Locked in"],
+  motivation:         ["None",         "Fired up"],
+  mood:               ["Low",          "Great"],
+  stress:             ["Overwhelmed",  "Calm"],
+  diet_quality:       ["Poor",         "Perfect"],
+  injury_pain_rating: ["No pain",      "Worst pain"],
+  session_rpe:        ["Low intensity","Max effort"],
 };
 
 function SliderField({
@@ -138,14 +139,16 @@ export function CheckInForm({
     stress: 3,
     diet_quality: 3,
     hitting_nutrition_targets: null as boolean | null,
-    sparring_load_rounds: "",
-    session_rpe: 5,
-    session_duration_mins: "",
     injury_area: "",
     injury_pain_rating: 0,
     open_notes: "",
     weight_kg: "",
   });
+
+  type Session = { rpe: number; duration: string; sparring: string };
+  const [sessions, setSessions] = useState<Session[]>([
+    { rpe: 5, duration: "", sparring: "" },
+  ]);
 
   const [hasInjury, setHasInjury] = useState(false);
   const [logPeriodStart, setLogPeriodStart] = useState(false);
@@ -155,6 +158,21 @@ export function CheckInForm({
 
   function set<K extends keyof typeof fields>(key: K, value: (typeof fields)[K]) {
     setFields((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function addSession() {
+    if (sessions.length >= 5) return;
+    setSessions((prev) => [...prev, { rpe: 5, duration: "", sparring: "" }]);
+  }
+
+  function removeSession(i: number) {
+    setSessions((prev) => prev.filter((_, idx) => idx !== i));
+  }
+
+  function updateSession(i: number, field: keyof Session, value: string | number) {
+    setSessions((prev) =>
+      prev.map((s, idx) => (idx === i ? { ...s, [field]: value } : s)),
+    );
   }
 
   const STEPS = [
@@ -169,6 +187,16 @@ export function CheckInForm({
 
   async function handleSubmit() {
     setStatus("submitting");
+
+    const totalDuration = sessions.reduce(
+      (sum, s) => sum + (s.duration !== "" ? Number(s.duration) : 0), 0,
+    );
+    const totalSparring = sessions.reduce(
+      (sum, s) => sum + (s.sparring !== "" ? Number(s.sparring) : 0), 0,
+    );
+    const avgRpe = Math.round(
+      sessions.reduce((sum, s) => sum + s.rpe, 0) / sessions.length,
+    );
 
     const res = await fetch("/api/log-checkin", {
       method: "POST",
@@ -186,9 +214,9 @@ export function CheckInForm({
         stress: fields.stress,
         diet_quality: fields.diet_quality,
         hitting_nutrition_targets: fields.hitting_nutrition_targets,
-        sparring_load_rounds: fields.sparring_load_rounds !== "" ? Number(fields.sparring_load_rounds) : null,
-        session_rpe: fields.session_rpe,
-        session_duration_mins: fields.session_duration_mins !== "" ? Number(fields.session_duration_mins) : null,
+        session_rpe: avgRpe,
+        session_duration_mins: totalDuration > 0 ? totalDuration : null,
+        sparring_load_rounds: totalSparring > 0 ? totalSparring : null,
         injury_area: hasInjury ? (fields.injury_area || null) : null,
         injury_pain_rating: hasInjury && fields.injury_area ? fields.injury_pain_rating : null,
         open_notes: fields.open_notes || null,
@@ -251,31 +279,89 @@ export function CheckInForm({
 
       case 1:
         return (
-          <Card>
-            <CardContent className="pt-5 flex flex-col gap-6">
-              <SectionLabel>Session</SectionLabel>
-              <SliderField id="session_rpe" label="Session RPE" emoji="📊"
-                value={fields.session_rpe} min={1} max={10}
-                onChange={(v) => set("session_rpe", v)} />
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="session_duration_mins" className="text-sm font-medium text-foreground">
-                  ⏱️ Session duration (minutes)
-                </Label>
-                <Input id="session_duration_mins" type="number" inputMode="numeric" min={0} max={480}
-                  placeholder="e.g. 60" value={fields.session_duration_mins}
-                  onChange={(e) => set("session_duration_mins", e.target.value)} />
-                <p className="text-xs text-muted-foreground">Used to calculate training load</p>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="sparring_load_rounds" className="text-sm font-medium text-foreground">
-                  🥊 Sparring rounds today
-                </Label>
-                <Input id="sparring_load_rounds" type="number" inputMode="numeric" min={0}
-                  placeholder="0" value={fields.sparring_load_rounds}
-                  onChange={(e) => set("sparring_load_rounds", e.target.value)} />
-              </div>
-            </CardContent>
-          </Card>
+          <div className="flex flex-col gap-3">
+            {sessions.map((session, i) => (
+              <Card key={i}>
+                <CardContent className="pt-4 flex flex-col gap-5">
+                  {/* Session header */}
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Session {i + 1}
+                    </p>
+                    {sessions.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeSession(i)}
+                        className="w-6 h-6 rounded-full flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        aria-label="Remove session"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* RPE */}
+                  <SliderField
+                    id="session_rpe"
+                    label="Session RPE"
+                    emoji="📊"
+                    value={session.rpe}
+                    min={1}
+                    max={10}
+                    onChange={(v) => updateSession(i, "rpe", v)}
+                  />
+
+                  {/* Duration + Sparring */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor={`duration_${i}`} className="text-sm font-medium text-foreground">
+                        ⏱️ Duration (mins)
+                      </Label>
+                      <Input
+                        id={`duration_${i}`}
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        max={480}
+                        placeholder="e.g. 60"
+                        value={session.duration}
+                        onChange={(e) => updateSession(i, "duration", e.target.value)}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor={`sparring_${i}`} className="text-sm font-medium text-foreground">
+                        🥊 Sparring rounds
+                      </Label>
+                      <Input
+                        id={`sparring_${i}`}
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        placeholder="0"
+                        value={session.sparring}
+                        onChange={(e) => updateSession(i, "sparring", e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+
+            {/* Add session */}
+            {sessions.length < 5 && (
+              <button
+                type="button"
+                onClick={addSession}
+                className="flex items-center justify-center gap-2 w-full py-3 rounded-xl border-2 border-dashed border-border text-sm font-medium text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Add session
+              </button>
+            )}
+            <p className="text-xs text-muted-foreground text-center">
+              Multiple sessions? RPE is averaged, duration and sparring are totalled.
+            </p>
+          </div>
         );
 
       case 2:
