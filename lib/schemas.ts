@@ -161,3 +161,32 @@ export const UpdateAthleteSchema = z.object({
 });
 
 export type UpdateAthleteInput = z.infer<typeof UpdateAthleteSchema>;
+
+// ─── log-checkin ──────────────────────────────────────────────────────────────
+
+const ratingSchema = z.number().int().min(0).max(5);
+
+export const CheckInSchema = z.object({
+  athlete_id: uuidSchema,
+  athlete_name: z.string().min(1).max(200),
+  checkin_date: dateSchema,
+  sleep_quality: ratingSchema,
+  sleep_hours: z.number().min(0).max(24).nullable().optional(),
+  physical_fatigue: ratingSchema,
+  mental_focus: ratingSchema,
+  motivation: ratingSchema,
+  mood: ratingSchema,
+  stress: ratingSchema,
+  diet_quality: ratingSchema,
+  hitting_nutrition_targets: z.boolean().nullable().optional(),
+  sparring_load_rounds: z.number().int().min(0).nullable().optional(),
+  session_rpe: z.number().int().min(1).max(10).nullable().optional(),
+  session_duration_mins: z.number().int().min(0).nullable().optional(),
+  injury_area: z.string().max(200).nullable().optional(),
+  injury_pain_rating: z.number().int().min(0).max(5).nullable().optional(),
+  open_notes: z.string().max(2000).nullable().optional(),
+  weight_kg: z.number().min(0).max(300).nullable().optional(),
+  log_period_start: z.boolean().optional().default(false),
+});
+
+export type CheckInInput = z.infer<typeof CheckInSchema>;

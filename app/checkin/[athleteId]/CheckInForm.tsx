@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -171,39 +170,38 @@ export function CheckInForm({
   async function handleSubmit() {
     setStatus("submitting");
 
-    const { error } = await supabase.from("daily_check_in").insert({
-      athlete_id: athleteId,
-      checkin_date: today,
-      sleep_quality: fields.sleep_quality,
-      sleep_hours: fields.sleep_hours !== "" ? Number(fields.sleep_hours) : null,
-      physical_fatigue: fields.physical_fatigue,
-      mental_focus: fields.mental_focus,
-      motivation: fields.motivation,
-      mood: fields.mood,
-      stress: fields.stress,
-      diet_quality: fields.diet_quality,
-      hitting_nutrition_targets: fields.hitting_nutrition_targets,
-      sparring_load_rounds: fields.sparring_load_rounds !== "" ? Number(fields.sparring_load_rounds) : null,
-      session_rpe: fields.session_rpe,
-      session_duration_mins: fields.session_duration_mins !== "" ? Number(fields.session_duration_mins) : null,
-      injury_area: hasInjury ? (fields.injury_area || null) : null,
-      injury_pain_rating: hasInjury && fields.injury_area ? fields.injury_pain_rating : null,
-      open_notes: fields.open_notes || null,
-      weight_kg: fields.weight_kg !== "" ? Number(fields.weight_kg) : null,
+    const res = await fetch("/api/log-checkin", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        athlete_id: athleteId,
+        athlete_name: athleteName,
+        checkin_date: today,
+        sleep_quality: fields.sleep_quality,
+        sleep_hours: fields.sleep_hours !== "" ? Number(fields.sleep_hours) : null,
+        physical_fatigue: fields.physical_fatigue,
+        mental_focus: fields.mental_focus,
+        motivation: fields.motivation,
+        mood: fields.mood,
+        stress: fields.stress,
+        diet_quality: fields.diet_quality,
+        hitting_nutrition_targets: fields.hitting_nutrition_targets,
+        sparring_load_rounds: fields.sparring_load_rounds !== "" ? Number(fields.sparring_load_rounds) : null,
+        session_rpe: fields.session_rpe,
+        session_duration_mins: fields.session_duration_mins !== "" ? Number(fields.session_duration_mins) : null,
+        injury_area: hasInjury ? (fields.injury_area || null) : null,
+        injury_pain_rating: hasInjury && fields.injury_area ? fields.injury_pain_rating : null,
+        open_notes: fields.open_notes || null,
+        weight_kg: fields.weight_kg !== "" ? Number(fields.weight_kg) : null,
+        log_period_start: logPeriodStart,
+      }),
     });
 
-    if (error) {
-      setErrorMsg(error.message);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setErrorMsg(data.error ?? "Failed to submit. Please try again.");
       setStatus("error");
       return;
-    }
-
-    if (logPeriodStart) {
-      await fetch("/api/log-cycle", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ athlete_id: athleteId, cycle_start_date: today }),
-      });
     }
 
     setStatus("success");
