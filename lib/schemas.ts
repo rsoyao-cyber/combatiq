@@ -147,3 +147,17 @@ export const ConfirmImportSchema = z.object({
 });
 
 export type ConfirmImportInput = z.infer<typeof ConfirmImportSchema>;
+
+// ─── update-athlete ───────────────────────────────────────────────────────────
+
+export const UpdateAthleteSchema = z.object({
+  name: z.string().min(1, "Name is required").max(200).trim(),
+  sex: z.enum(["male", "female"]).nullable().optional(),
+  sport: z.string().min(1, "Sport is required").max(100).trim(),
+  weight_class: z.string().max(50).trim(),
+  competition_level: z.enum(["Amateur", "Semi-Pro", "Professional", "Elite"]),
+  training_age_years: z.number().int().min(0).max(50),
+  clinic_name: z.string().max(200).trim().nullable().optional(),
+});
+
+export type UpdateAthleteInput = z.infer<typeof UpdateAthleteSchema>;

@@ -11,6 +11,7 @@ import {
 import { getMondayOfWeek } from "@/lib/training-week-types";
 import type { TrainingWeekSnapshot } from "@/lib/training-week-types";
 import { GoalEditor } from "./GoalEditor";
+import { EditAthleteModal } from "./EditAthleteModal";
 import { WellbeingCharts } from "./WellbeingCharts";
 import { PerformanceCharts } from "./PerformanceCharts";
 import { ReportPanel } from "./ReportPanel";
@@ -184,7 +185,7 @@ export default async function AthletePage({
   ] = await Promise.all([
     supabaseAdmin
       .from("athlete")
-      .select("id, name, sex, sport, weight_class, competition_level, training_age_years")
+      .select("id, name, sex, sport, weight_class, competition_level, training_age_years, clinic_name")
       .eq("id", id)
       .single(),
 
@@ -370,6 +371,7 @@ export default async function AthletePage({
             </Badge>
           )}
           <ReportGenerateButtons athleteId={id} />
+          <EditAthleteModal athlete={athlete} />
           <Link
             href={`/dashboard/import?athleteId=${id}&athleteName=${encodeURIComponent(athlete.name)}`}
             className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-1.5")}
