@@ -22,7 +22,7 @@ Practitioners enter test and training data. Athletes submit daily wellness check
 |---|---|
 | `athlete` | Athlete profiles — sport, weight class, competition level, training age |
 | `test_session` | One-off physical assessments (CMJ, grip strength, Yo-Yo, sprint, body comp) stored as `results_json` |
-| `daily_check_in` | Athlete-submitted daily wellness snapshot — sleep, fatigue, focus, mood, stress, diet, RPE, injury, body weight |
+| `daily_check_in` | Athlete-submitted daily wellness snapshot — sleep, fatigue, focus, mood, stress, diet, RPE, session types, injury, body weight |
 | `monthly_goal` | Practitioner-set monthly goals per athlete |
 | `rmr` | Resting metabolic rate measurements |
 | `workout_program` | Overarching training block (e.g. Phase 1, 8 weeks) |
@@ -37,6 +37,7 @@ Practitioners enter test and training data. Athletes submit daily wellness check
 
 - All athlete wellness ratings use a **0–5 scale** (0 = very poor, 5 = excellent)
 - RPE uses **1–10**
+- `daily_check_in.session_types` is a `text[]` column storing the union of activity types logged across all sessions in a check-in (e.g. `["Strength", "BJJ/Grappling"]`). Nullable — older rows won't have it.
 - Power and weight units are **mutually exclusive** on `exercise_set` — watts go in `power_watts`, never `weight_kg`. Trainerize exports AssaultBike wattage in the weight field (e.g. "1199 kg" = 1199 W) — always remap on import.
 - Practitioner notes are **never** exposed to athletes
 

@@ -145,9 +145,14 @@ export function CheckInForm({
     weight_kg: "",
   });
 
-  type Session = { rpe: number; duration: string; sparring: string };
+  const SESSION_TYPE_OPTIONS = [
+    "Running", "Strength", "BJJ/Grappling", "Boxing/Pads",
+    "Sparring", "Conditioning", "Mobility", "Competition", "Other",
+  ];
+
+  type Session = { rpe: number; duration: string; sparring: string; types: string[] };
   const [sessions, setSessions] = useState<Session[]>([
-    { rpe: 5, duration: "", sparring: "" },
+    { rpe: 5, duration: "", sparring: "", types: [] },
   ]);
 
   const [hasInjury, setHasInjury] = useState(false);
@@ -162,16 +167,28 @@ export function CheckInForm({
 
   function addSession() {
     if (sessions.length >= 5) return;
-    setSessions((prev) => [...prev, { rpe: 5, duration: "", sparring: "" }]);
+    setSessions((prev) => [...prev, { rpe: 5, duration: "", sparring: "", types: [] }]);
   }
 
   function removeSession(i: number) {
     setSessions((prev) => prev.filter((_, idx) => idx !== i));
   }
 
-  function updateSession(i: number, field: keyof Session, value: string | number) {
+  function updateSession(i: number, field: keyof Session, value: string | number | string[]) {
     setSessions((prev) =>
       prev.map((s, idx) => (idx === i ? { ...s, [field]: value } : s)),
+    );
+  }
+
+  function toggleSessionType(i: number, type: string) {
+    setSessions((prev) =>
+      prev.map((s, idx) => {
+        if (idx !== i) return s;
+        const types = s.types.includes(type)
+          ? s.types.filter((t) => t !== type)
+          : [...s.types, type];
+        return { ...s, types };
+      }),
     );
   }
 
@@ -197,6 +214,7 @@ export function CheckInForm({
     const avgRpe = Math.round(
       sessions.reduce((sum, s) => sum + s.rpe, 0) / sessions.length,
     );
+    const allTypes = [...new Set(sessions.flatMap((s) => s.types))];
 
     const res = await fetch("/api/log-checkin", {
       method: "POST",
@@ -222,6 +240,7 @@ export function CheckInForm({
         open_notes: fields.open_notes || null,
         weight_kg: fields.weight_kg !== "" ? Number(fields.weight_kg) : null,
         log_period_start: logPeriodStart,
+        session_types: allTypes.length > 0 ? allTypes : null,
       }),
     });
 
@@ -310,6 +329,30 @@ export function CheckInForm({
                     max={10}
                     onChange={(v) => updateSession(i, "rpe", v)}
                   />
+
+                  {/* Activity type */}
+                  <div className="flex flex-col gap-2">
+                    <Label className="text-sm font-medium text-foreground">🏃 Activity type</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {SESSION_TYPE_OPTIONS.map((type) => {
+                        const active = session.types.includes(type);
+                        return (
+                          <button
+                            key={type}
+                            type="button"
+                            onClick={() => toggleSessionType(i, type)}
+                            className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${
+                              active
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "bg-background text-foreground border-input hover:bg-muted"
+                            }`}
+                          >
+                            {type}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
 
                   {/* Duration + Sparring */}
                   <div className="grid grid-cols-2 gap-3">

@@ -18,6 +18,13 @@ readiness reports.
 ## Check-in scale
 All athlete ratings use 0-5 (0 = very poor, 5 = excellent)
 
+## Check-in session types
+Athletes select one or more activity types per session on the Training Load step.
+Options: Running, Strength, BJJ/Grappling, Boxing/Pads, Sparring, Conditioning, Mobility, Competition, Other.
+Multi-session check-ins deduplicate types across sessions before storing.
+Stored in daily_check_in.session_types (text[], nullable).
+Displayed as chips in the Recent Activity table on the athlete dashboard.
+
 ## Who fills in what
 - Athlete: daily check-in form (mobile link, no login required)
   also: alternative week schedule via /checkin/[athleteId]/week
@@ -92,7 +99,7 @@ Return ONLY valid JSON with no preamble. Structure:
       "exercise_sets": [
         {
           "exercise_name": string,
-          "exercise_category": "strength"|"power"|"mobility"|"interval",
+          "exercise_category": "strength"|"power"|"mobility"|"interval"|"conditioning",
           "set_number": number,
           "cluster_number": number | null,
           "reps": number | null,

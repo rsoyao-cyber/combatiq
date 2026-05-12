@@ -102,7 +102,7 @@ const PowerBenchmarkSchema = z.object({
 
 const ParsedExerciseSetSchema = z.object({
   exercise_name: z.string().min(1).max(200),
-  exercise_category: z.enum(["strength", "power", "mobility", "interval"]),
+  exercise_category: z.enum(["strength", "power", "mobility", "interval", "conditioning"]),
   set_number: z.number().int().min(1),
   cluster_number: z.number().int().nullable().optional(),
   reps: z.number().int().min(0).nullable().optional(),
@@ -118,7 +118,7 @@ const ParsedWorkoutTemplateSchema = z.object({
   workout_type: z.enum(["interval", "strength", "mobility", "conditioning"]),
   estimated_duration_mins: z.number().int().min(0).nullable().optional(),
   equipment: z.array(z.string().max(100)).max(50),
-  instructions: z.string().max(5000),
+  instructions: z.string(),
   power_benchmarks: z.array(PowerBenchmarkSchema).max(20),
 });
 
@@ -187,6 +187,7 @@ export const CheckInSchema = z.object({
   open_notes: z.string().max(2000).nullable().optional(),
   weight_kg: z.number().min(0).max(300).nullable().optional(),
   log_period_start: z.boolean().optional().default(false),
+  session_types: z.array(z.string().max(50)).max(10).nullable().optional(),
 });
 
 export type CheckInInput = z.infer<typeof CheckInSchema>;

@@ -70,6 +70,7 @@ export type Database = {
           physical_fatigue: number
           session_duration_mins: number | null
           session_rpe: number | null
+          session_types: string[] | null
           sleep_hours: number | null
           sleep_quality: number
           sparring_load_rounds: number | null
@@ -92,6 +93,7 @@ export type Database = {
           physical_fatigue: number
           session_duration_mins?: number | null
           session_rpe?: number | null
+          session_types?: string[] | null
           sleep_hours?: number | null
           sleep_quality: number
           sparring_load_rounds?: number | null
@@ -114,6 +116,7 @@ export type Database = {
           physical_fatigue?: number
           session_duration_mins?: number | null
           session_rpe?: number | null
+          session_types?: string[] | null
           sleep_hours?: number | null
           sleep_quality?: number
           sparring_load_rounds?: number | null

@@ -33,6 +33,7 @@ function buildEmailHtml(data: {
   session_duration_mins?: number | null;
   sparring_load_rounds?: number | null;
   weight_kg?: number | null;
+  session_types?: string[] | null;
   injury_area?: string | null;
   injury_pain_rating?: number | null;
   open_notes?: string | null;
@@ -84,6 +85,7 @@ function buildEmailHtml(data: {
 
           <p style="margin:0 0 12px;color:#71717a;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">Training</p>
           <table cellpadding="0" cellspacing="0" style="width:100%;margin-bottom:20px;">
+            ${row("Activity types", data.session_types?.length ? data.session_types.join(", ") : "—")}
             ${row("Session RPE", data.session_rpe != null ? `${data.session_rpe}/10` : "—")}
             ${row("Duration", data.session_duration_mins != null ? `${data.session_duration_mins} min` : "—")}
             ${row("Sparring rounds", data.sparring_load_rounds != null ? String(data.sparring_load_rounds) : "—")}
@@ -155,6 +157,7 @@ export async function POST(request: Request) {
     injury_pain_rating: checkinFields.injury_pain_rating ?? null,
     open_notes: checkinFields.open_notes ?? null,
     weight_kg: checkinFields.weight_kg ?? null,
+    session_types: checkinFields.session_types ?? null,
   });
 
   if (dbError) {

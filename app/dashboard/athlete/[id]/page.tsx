@@ -199,7 +199,7 @@ export default async function AthletePage({
     supabaseAdmin
       .from("daily_check_in")
       .select(
-        "checkin_date, sleep_quality, physical_fatigue, mental_focus, motivation, mood, stress, diet_quality, session_rpe, session_duration_mins",
+        "checkin_date, sleep_quality, physical_fatigue, mental_focus, motivation, mood, stress, diet_quality, session_rpe, session_duration_mins, session_types",
       )
       .eq("athlete_id", id)
       .gte("checkin_date", cutoff28)
@@ -530,13 +530,27 @@ export default async function AthletePage({
                   const rpe = c.session_rpe as number | null;
                   const dur = c.session_duration_mins as number | null;
                   const load = rpe != null && dur != null ? Math.round(rpe * 2 * dur) : null;
-                  const sessionType = rpe != null ? "Training" : "Rest day";
+                  const types = (c as { session_types?: string[] | null }).session_types;
                   return (
                     <TableRow key={i}>
                       <TableCell className="font-medium tabular-nums text-sm">
                         {c.checkin_date}
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{sessionType}</TableCell>
+                      <TableCell>
+                        {types && types.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {types.map((t) => (
+                              <span key={t} className="text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                                {t}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">
+                            {rpe != null ? "Training" : "Rest day"}
+                          </span>
+                        )}
+                      </TableCell>
                       <TableCell>
                         {rpe != null ? (
                           <span className={cn(
