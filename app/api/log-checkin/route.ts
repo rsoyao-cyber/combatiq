@@ -192,7 +192,7 @@ export async function POST(request: Request) {
   const adminEmail = process.env.ADMIN_EMAIL;
   if (adminEmail && process.env.RESEND_API_KEY) {
     await getResend().emails.send({
-      from: process.env.RESEND_FROM_EMAIL ?? "CombatIQ <onboarding@resend.dev>",
+      from: process.env.RESEND_FROM_EMAIL || "CombatIQ <onboarding@resend.dev>",
       to: adminEmail,
       subject: `${check_in_timing === "morning_only" ? "Morning check-in" : "Check-in"}: ${athlete_name} · ${checkin_date}`,
       html: buildEmailHtml({ athlete_name, checkin_date, ...checkinFields, check_in_timing }),
