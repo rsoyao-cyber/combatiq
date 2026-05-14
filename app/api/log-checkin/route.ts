@@ -37,6 +37,7 @@ function buildEmailHtml(data: {
   injury_area?: string | null;
   injury_pain_rating?: number | null;
   open_notes?: string | null;
+  check_in_timing?: string | null;
 }): string {
   const hasInjury = !!data.injury_area;
   const injuryColour = hasInjury && (data.injury_pain_rating ?? 0) >= 3 ? "#dc2626" : "#d97706";
@@ -66,6 +67,11 @@ function buildEmailHtml(data: {
 
         <!-- Body -->
         <tr><td style="padding:24px 28px;">
+
+          ${data.check_in_timing === "morning_only" ? `
+          <div style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:12px 16px;margin-bottom:20px;">
+            <p style="margin:0;color:#4338ca;font-weight:700;font-size:13px;">🌅 Morning check-in — session data not yet logged</p>
+          </div>` : ""}
 
           ${hasInjury ? `
           <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:12px 16px;margin-bottom:20px;">
@@ -137,28 +143,37 @@ export async function POST(request: Request) {
     ...checkinFields
   } = result.data;
 
-  // ── 1. Write check-in ────────────────────────────────────────────────────
-  const { error: dbError } = await supabaseAdmin.from("daily_check_in").insert({
-    athlete_id,
-    checkin_date,
-    sleep_quality: checkinFields.sleep_quality,
-    sleep_hours: checkinFields.sleep_hours ?? null,
-    physical_fatigue: checkinFields.physical_fatigue,
-    mental_focus: checkinFields.mental_focus,
-    motivation: checkinFields.motivation,
-    mood: checkinFields.mood,
-    stress: checkinFields.stress,
-    diet_quality: checkinFields.diet_quality,
-    hitting_nutrition_targets: checkinFields.hitting_nutrition_targets ?? null,
-    sparring_load_rounds: checkinFields.sparring_load_rounds ?? null,
-    session_rpe: checkinFields.session_rpe ?? null,
-    session_duration_mins: checkinFields.session_duration_mins ?? null,
-    injury_area: checkinFields.injury_area ?? null,
-    injury_pain_rating: checkinFields.injury_pain_rating ?? null,
-    open_notes: checkinFields.open_notes ?? null,
-    weight_kg: checkinFields.weight_kg ?? null,
-    session_types: checkinFields.session_types ?? null,
-  });
+  // Derive timing if not explicitly provided
+  const hasSessionData = checkinFields.session_rpe != null;
+  const check_in_timing =
+    checkinFields.check_in_timing ?? (hasSessionData ? "complete" : "morning_only");
+
+  // ── 1. Upsert check-in (handles both first submit and post-training completion) ──
+  const { error: dbError } = await supabaseAdmin.from("daily_check_in").upsert(
+    {
+      athlete_id,
+      checkin_date,
+      sleep_quality: checkinFields.sleep_quality,
+      sleep_hours: checkinFields.sleep_hours ?? null,
+      physical_fatigue: checkinFields.physical_fatigue,
+      mental_focus: checkinFields.mental_focus,
+      motivation: checkinFields.motivation,
+      mood: checkinFields.mood,
+      stress: checkinFields.stress,
+      diet_quality: checkinFields.diet_quality,
+      hitting_nutrition_targets: checkinFields.hitting_nutrition_targets ?? null,
+      sparring_load_rounds: checkinFields.sparring_load_rounds ?? null,
+      session_rpe: checkinFields.session_rpe ?? null,
+      session_duration_mins: checkinFields.session_duration_mins ?? null,
+      injury_area: checkinFields.injury_area ?? null,
+      injury_pain_rating: checkinFields.injury_pain_rating ?? null,
+      open_notes: checkinFields.open_notes ?? null,
+      weight_kg: checkinFields.weight_kg ?? null,
+      session_types: checkinFields.session_types ?? null,
+      check_in_timing,
+    },
+    { onConflict: "athlete_id,checkin_date" },
+  );
 
   if (dbError) {
     return NextResponse.json({ error: dbError.message }, { status: 500 });
@@ -179,8 +194,8 @@ export async function POST(request: Request) {
     await getResend().emails.send({
       from: process.env.RESEND_FROM_EMAIL ?? "CombatIQ <onboarding@resend.dev>",
       to: adminEmail,
-      subject: `Check-in: ${athlete_name} · ${checkin_date}`,
-      html: buildEmailHtml({ athlete_name, checkin_date, ...checkinFields }),
+      subject: `${check_in_timing === "morning_only" ? "Morning check-in" : "Check-in"}: ${athlete_name} · ${checkin_date}`,
+      html: buildEmailHtml({ athlete_name, checkin_date, ...checkinFields, check_in_timing }),
     });
   }
 

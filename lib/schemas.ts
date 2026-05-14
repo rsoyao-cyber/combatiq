@@ -189,6 +189,7 @@ export const CheckInSchema = z.object({
   weight_kg: z.number().min(0).max(300).nullable().optional(),
   log_period_start: z.boolean().optional().default(false),
   session_types: z.array(z.string().max(50)).max(10).nullable().optional(),
+  check_in_timing: z.enum(["morning_only", "complete"]).nullable().optional(),
 });
 
 export type CheckInInput = z.infer<typeof CheckInSchema>;

@@ -56,6 +56,7 @@ export type Database = {
       daily_check_in: {
         Row: {
           athlete_id: string
+          check_in_timing: string | null
           checkin_date: string
           created_at: string
           diet_quality: number
@@ -79,6 +80,7 @@ export type Database = {
         }
         Insert: {
           athlete_id: string
+          check_in_timing?: string | null
           checkin_date: string
           created_at?: string
           diet_quality: number
@@ -102,6 +104,7 @@ export type Database = {
         }
         Update: {
           athlete_id?: string
+          check_in_timing?: string | null
           checkin_date?: string
           created_at?: string
           diet_quality?: number
