@@ -1,17 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import type { WeekScheduleJson, WeekDay, WeekSlot, SlotIntensity, Adherence } from "@/lib/training-week-types";
-import { emptyWeekSchedule, computeIntensityDisplay } from "@/lib/training-week-types";
+import type { WeekScheduleJson, WeekSlot, SlotIntensity } from "@/lib/training-week-types";
+import { computeIntensityDisplay } from "@/lib/training-week-types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Check, RotateCcw } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-// ─── Traffic-light colours (keep rest/med/high as-is) ────────────────────────
+// ─── Intensity styling ────────────────────────────────────────────────────────
 
 const INTENSITY_BADGE: Record<SlotIntensity, string> = {
   rest: "bg-emerald-50 text-emerald-700 border-emerald-200",
@@ -25,112 +25,79 @@ const INTENSITY_ACTIVE: Record<SlotIntensity, string> = {
   high: "bg-red-500    text-white border-red-500",
 };
 
-const INTENSITY_OPTIONS: { value: SlotIntensity; label: string }[] = [
+const INTENSITY_OPTIONS: Array<{ value: SlotIntensity; label: string }> = [
   { value: "rest", label: "REST" },
   { value: "med",  label: "MED"  },
   { value: "high", label: "HIGH" },
 ];
 
-// ─── Slot row ─────────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-function SlotRow({
-  period,
-  slot,
-  dayIndex,
-  onChange,
-}: {
-  period: string;
-  slot: WeekSlot;
-  dayIndex: number;
-  onChange: (s: WeekSlot) => void;
-}) {
-  const isEmpty = !slot.label || slot.label === "—";
-  return (
-    <div className="flex flex-col gap-1.5">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">{period}</p>
-      <div className="flex gap-2">
-        <Input
-          value={isEmpty ? "" : slot.label}
-          placeholder="—"
-          maxLength={200}
-          aria-label={`${period} session description for day ${dayIndex + 1}`}
-          onChange={(e) => onChange({ ...slot, label: e.target.value || "—" })}
-          className="flex-1"
-        />
-        <div className="flex rounded-lg overflow-hidden border border-input text-xs font-semibold">
-          {INTENSITY_OPTIONS.map(({ value, label }) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => onChange({ ...slot, intensity: value })}
-              className={`px-2.5 py-2 transition-colors ${
-                slot.intensity === value
-                  ? INTENSITY_ACTIVE[value]
-                  : "bg-background text-muted-foreground hover:bg-muted"
-              }`}
-              aria-label={`Set ${period} intensity to ${label}`}
-              aria-pressed={slot.intensity === value}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
+type Period = "morning" | "afternoon" | "evening";
+
+interface DeviationData {
+  label: string;
+  intensity: SlotIntensity;
+  note: string;
 }
 
-// ─── Day card ─────────────────────────────────────────────────────────────────
+const PERIODS: Array<{ key: Period; label: string }> = [
+  { key: "morning",   label: "Morning"   },
+  { key: "afternoon", label: "Afternoon" },
+  { key: "evening",   label: "Evening"   },
+];
 
-function DayCard({
-  day,
-  dayIndex,
-  onChange,
-}: {
-  day: WeekDay;
-  dayIndex: number;
-  onChange: (d: WeekDay) => void;
-}) {
-  function updateSlot(period: "morning" | "afternoon" | "evening", next: WeekSlot) {
-    const updated = { ...day, [period]: next };
-    onChange({ ...updated, intensity_display: computeIntensityDisplay(updated) });
+function slotId(dayIndex: number, period: Period): string {
+  return `${dayIndex}-${period}`;
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function buildInitialDeviations(
+  primary: WeekScheduleJson | null,
+  existing: WeekScheduleJson | null,
+): Record<string, DeviationData> {
+  if (!primary || !existing) return {};
+  const result: Record<string, DeviationData> = {};
+  for (let i = 0; i < primary.days.length; i++) {
+    const pDay = primary.days[i];
+    const aDay = existing.days[i];
+    if (!aDay) continue;
+    for (const { key } of PERIODS) {
+      const p = pDay[key];
+      const a = aDay[key];
+      if (p.label !== a.label || p.intensity !== a.intensity) {
+        result[slotId(i, key)] = {
+          label: a.label === "—" ? "" : a.label,
+          intensity: a.intensity,
+          note: a.deviation_note ?? "",
+        };
+      }
+    }
   }
+  return result;
+}
 
-  const dominantIntensity: SlotIntensity = (() => {
-    const raw = day.intensity_display.toLowerCase();
-    if (raw.includes("high")) return "high";
-    if (raw.includes("med"))  return "med";
-    return "rest";
-  })();
-
-  return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base font-bold text-foreground">{day.day}</CardTitle>
-          <Badge variant="outline" className={`text-xs font-bold ${INTENSITY_BADGE[dominantIntensity]}`}>
-            {day.intensity_display || "REST | REST"}
-          </Badge>
-        </div>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        <SlotRow period="Morning"   slot={day.morning}   dayIndex={dayIndex} onChange={(s) => updateSlot("morning", s)} />
-        <SlotRow period="Afternoon" slot={day.afternoon} dayIndex={dayIndex} onChange={(s) => updateSlot("afternoon", s)} />
-        <SlotRow period="Evening"   slot={day.evening}   dayIndex={dayIndex} onChange={(s) => updateSlot("evening", s)} />
-
-        <div className="flex flex-col gap-1.5">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Session types</p>
-          <Input
-            value={day.session_types}
-            placeholder="e.g. Strength + S&C"
-            maxLength={500}
-            aria-label={`Session types for ${day.day}`}
-            onChange={(e) => onChange({ ...day, session_types: e.target.value })}
-          />
-        </div>
-      </CardContent>
-    </Card>
-  );
+function buildAlternativeJson(
+  primary: WeekScheduleJson,
+  deviations: Record<string, DeviationData>,
+): WeekScheduleJson {
+  return {
+    days: primary.days.map((day, i) => {
+      const updatedDay = { ...day };
+      for (const { key } of PERIODS) {
+        const dev = deviations[slotId(i, key)];
+        if (dev) {
+          updatedDay[key] = {
+            label: dev.label || "—",
+            intensity: dev.intensity,
+            deviation_note: dev.note || null,
+          };
+        }
+      }
+      return { ...updatedDay, intensity_display: computeIntensityDisplay(updatedDay) };
+    }),
+  };
 }
 
 // ─── Main form ────────────────────────────────────────────────────────────────
@@ -139,18 +106,19 @@ export function WeekAlternativeForm({
   athleteId,
   athleteName,
   weekStart,
-  prefill,
+  primarySchedule,
+  existingAlternative,
 }: {
   athleteId: string;
   athleteName: string;
   weekStart: string;
-  prefill: WeekScheduleJson | null;
+  primarySchedule: WeekScheduleJson | null;
+  existingAlternative: WeekScheduleJson | null;
 }) {
-  const [schedule, setSchedule] = useState<WeekScheduleJson>(
-    prefill ?? emptyWeekSchedule(),
+  const [deviations, setDeviations] = useState<Record<string, DeviationData>>(
+    () => buildInitialDeviations(primarySchedule, existingAlternative),
   );
-  const [adherence, setAdherence] = useState<Adherence>(null);
-  const [weekNotes, setWeekNotes] = useState("");
+  const [weekNotes, setWeekNotes] = useState(existingAlternative ? "" : "");
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -159,14 +127,46 @@ export function WeekAlternativeForm({
   const fmt = (d: Date) => d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
   const weekLabel = `${fmt(new Date(`${weekStart}T00:00:00`))} – ${fmt(weekEnd)}`;
 
-  function updateDay(i: number, next: WeekDay) {
-    setSchedule({ days: schedule.days.map((d, idx) => (idx === i ? next : d)) });
+  const deviationCount = Object.keys(deviations).length;
+
+  function changeSlot(dayIndex: number, period: Period, primarySlot: WeekSlot) {
+    const id = slotId(dayIndex, period);
+    setDeviations((prev) => ({
+      ...prev,
+      [id]: {
+        label: primarySlot.label === "—" ? "" : primarySlot.label,
+        intensity: primarySlot.intensity,
+        note: "",
+      },
+    }));
   }
 
-  async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
+  function revertSlot(dayIndex: number, period: Period) {
+    const id = slotId(dayIndex, period);
+    setDeviations((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  }
+
+  function updateDeviation(
+    dayIndex: number,
+    period: Period,
+    field: keyof DeviationData,
+    value: string,
+  ) {
+    const id = slotId(dayIndex, period);
+    setDeviations((prev) => ({ ...prev, [id]: { ...prev[id], [field]: value } }));
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!primarySchedule) return;
     setStatus("submitting");
     setErrorMsg("");
+
+    const altJson = buildAlternativeJson(primarySchedule, deviations);
 
     const res = await fetch("/api/training-week", {
       method: "PUT",
@@ -175,8 +175,8 @@ export function WeekAlternativeForm({
         athleteId,
         weekStart,
         type: "alternative",
-        alternative_json: schedule,
-        adherence,
+        alternative_json: altJson,
+        adherence: deviationCount > 0 ? "changed" : "stuck_to_plan",
         week_notes: weekNotes || null,
       }),
     });
@@ -191,85 +191,166 @@ export function WeekAlternativeForm({
     setStatus("success");
   }
 
+  // ── Success ──────────────────────────────────────────────────────────────────
   if (status === "success") {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center px-5 text-center gap-4">
         <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center text-3xl">✅</div>
-        <h1 className="text-2xl font-bold text-foreground">Week submitted</h1>
-        <p className="text-muted-foreground">Thanks {athleteName}. Your alternative week has been saved.</p>
+        <h1 className="text-2xl font-bold text-foreground">Week logged</h1>
+        <p className="text-muted-foreground">
+          {deviationCount === 0
+            ? "Got it — you stuck to the plan this week."
+            : `${deviationCount} change${deviationCount !== 1 ? "s" : ""} saved. Thanks for keeping it updated.`}
+        </p>
       </div>
     );
   }
 
+  // ── No plan set ──────────────────────────────────────────────────────────────
+  if (!primarySchedule) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center px-5 text-center gap-4">
+        <p className="text-muted-foreground">No training plan has been set for this week yet.</p>
+      </div>
+    );
+  }
+
+  // ── Deviation form ────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-background">
-      <header className="bg-primary text-primary-foreground px-5 pb-6" style={{ paddingTop: "max(2.5rem, env(safe-area-inset-top))" }}>
+      <header
+        className="bg-primary text-primary-foreground px-5 pb-6"
+        style={{ paddingTop: "max(2.5rem, env(safe-area-inset-top))" }}
+      >
         <p className="text-sm text-primary-foreground/70 mb-1">{weekLabel}</p>
-        <h1 className="text-2xl font-bold">Log your actual week</h1>
-        <p className="text-primary-foreground/70 text-sm mt-1">Fill in what you actually did this week</p>
+        <h1 className="text-2xl font-bold">{athleteName}</h1>
+        <p className="text-primary-foreground/70 text-sm mt-1">
+          {deviationCount === 0
+            ? "Tap Change on any session that didn't go to plan."
+            : `${deviationCount} change${deviationCount !== 1 ? "s" : ""} logged`}
+        </p>
       </header>
 
       <form
         onSubmit={handleSubmit}
-        className="px-4 py-6 flex flex-col gap-4 max-w-lg mx-auto"
-        style={{ paddingBottom: "max(2rem, env(safe-area-inset-bottom))" }}
+        className="px-4 py-6 flex flex-col gap-5 max-w-lg mx-auto"
+        style={{ paddingBottom: "max(5rem, env(safe-area-inset-bottom))" }}
       >
-        {schedule.days.map((day, i) => (
-          <DayCard
-            key={day.day}
-            day={day}
-            dayIndex={i}
-            onChange={(next) => updateDay(i, next)}
-          />
+        {primarySchedule.days.map((day, dayIndex) => (
+          <div key={day.day} className="flex flex-col gap-2">
+            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1">
+              {day.day}
+            </p>
+            <Card>
+              <CardContent className="pt-3 pb-3 divide-y divide-border">
+                {PERIODS.map(({ key, label }) => {
+                  const primarySlot = day[key];
+                  const isRest = !primarySlot.label || primarySlot.label === "—";
+                  const dev = deviations[slotId(dayIndex, key)];
+
+                  return (
+                    <div key={key} className="py-3 first:pt-0 last:pb-0">
+                      <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-2">
+                        {label}
+                      </p>
+
+                      {dev ? (
+                        // ── Deviation editor ────────────────────────────────
+                        <div className="flex flex-col gap-3">
+                          <Input
+                            value={dev.label}
+                            placeholder="What did you do?"
+                            maxLength={200}
+                            onChange={(e) => updateDeviation(dayIndex, key, "label", e.target.value)}
+                          />
+                          <div className="flex rounded-lg overflow-hidden border border-input text-xs font-semibold w-fit">
+                            {INTENSITY_OPTIONS.map(({ value, label: intLabel }) => (
+                              <button
+                                key={value}
+                                type="button"
+                                onClick={() => updateDeviation(dayIndex, key, "intensity", value)}
+                                className={`px-3 py-2 transition-colors ${
+                                  dev.intensity === value
+                                    ? INTENSITY_ACTIVE[value]
+                                    : "bg-background text-muted-foreground hover:bg-muted"
+                                }`}
+                              >
+                                {intLabel}
+                              </button>
+                            ))}
+                          </div>
+                          <textarea
+                            rows={2}
+                            placeholder="Why did this change? (optional)"
+                            value={dev.note}
+                            maxLength={500}
+                            onChange={(e) => updateDeviation(dayIndex, key, "note", e.target.value)}
+                            className="border border-input rounded-md px-3 py-2 text-sm text-foreground bg-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => revertSlot(dayIndex, key)}
+                            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors w-fit"
+                          >
+                            <RotateCcw className="w-3 h-3" />
+                            Revert to plan
+                          </button>
+                        </div>
+                      ) : (
+                        // ── As planned ──────────────────────────────────────
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            {isRest ? (
+                              <span className="text-sm text-muted-foreground">Rest</span>
+                            ) : (
+                              <>
+                                <span className="text-sm font-medium text-foreground truncate">
+                                  {primarySlot.label}
+                                </span>
+                                <span className={cn(
+                                  "text-xs font-semibold px-2 py-0.5 rounded-full border flex-shrink-0",
+                                  INTENSITY_BADGE[primarySlot.intensity],
+                                )}>
+                                  {primarySlot.intensity.toUpperCase()}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <Check className="w-3.5 h-3.5 text-emerald-500" />
+                            <button
+                              type="button"
+                              onClick={() => changeSlot(dayIndex, key, primarySlot)}
+                              className="text-xs text-muted-foreground hover:text-foreground transition-colors underline-offset-2 hover:underline"
+                            >
+                              Change
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          </div>
         ))}
 
-        {/* Adherence */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-              How did it go?
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            <div className="flex flex-col gap-2">
-              <p className="text-base font-semibold text-foreground">Did you stick to the plan?</p>
-              <div className="flex gap-3">
-                {[
-                  { label: "Stuck to plan", value: "stuck_to_plan" as const },
-                  { label: "Had to change", value: "changed" as const },
-                ].map(({ label, value }) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => setAdherence(adherence === value ? null : value)}
-                    className={`flex-1 py-3 rounded-xl font-semibold text-sm transition-colors border ${
-                      adherence === value
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "bg-background text-foreground border-input hover:bg-muted"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="week_notes" className="text-base font-semibold text-foreground">
-                Any notes about the week?
-              </Label>
-              <textarea
-                id="week_notes"
-                rows={3}
-                maxLength={1000}
-                placeholder="Travel, illness, schedule changes…"
-                value={weekNotes}
-                onChange={(e) => setWeekNotes(e.target.value)}
-                className="border border-input rounded-lg px-4 py-3 text-foreground bg-background placeholder:text-muted-foreground text-base focus:outline-none focus:ring-2 focus:ring-ring resize-none"
-              />
-            </div>
-          </CardContent>
-        </Card>
+        {/* Week notes */}
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="week_notes" className="text-sm font-semibold text-foreground">
+            Any notes about the week?
+          </Label>
+          <textarea
+            id="week_notes"
+            rows={3}
+            maxLength={1000}
+            placeholder="Travel, illness, schedule changes…"
+            value={weekNotes}
+            onChange={(e) => setWeekNotes(e.target.value)}
+            className="border border-input rounded-lg px-4 py-3 text-foreground bg-background placeholder:text-muted-foreground text-base focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+          />
+        </div>
 
         {status === "error" && (
           <Alert variant="destructive">
@@ -283,7 +364,7 @@ export function WeekAlternativeForm({
           disabled={status === "submitting"}
           className="w-full h-14 text-base font-bold rounded-2xl"
         >
-          {status === "submitting" ? "Submitting…" : "Submit my week"}
+          {status === "submitting" ? "Saving…" : "Submit"}
         </Button>
       </form>
     </div>

@@ -8,6 +8,8 @@ export interface WeekSlot {
   /** Human-readable description, e.g. "Strength & Power". Use "—" for empty. */
   label: string;
   intensity: SlotIntensity;
+  /** Only set on alternative_json slots that deviated from the primary plan. */
+  deviation_note?: string | null;
 }
 
 /**

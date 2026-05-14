@@ -45,6 +45,7 @@ export type GenerateReportInput = z.infer<typeof GenerateReportSchema>;
 const SlotSchema = z.object({
   label: z.string().max(200),
   intensity: z.enum(["rest", "med", "high"]),
+  deviation_note: z.string().max(500).nullable().optional(),
 });
 
 const DaySchema = z.object({
