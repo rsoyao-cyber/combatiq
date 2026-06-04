@@ -131,12 +131,36 @@ export async function POST(request: Request) {
   }
 
   // ── 5. Create TrainingSessions + ExerciseSets ────────────────────────────
+
+  // Build a set of "date|template_name" keys from sessions already in the DB for this athlete.
+  // This allows safe re-import and plan transitions without duplicating historical sessions
+  // that Trainerize includes as "Previous Stats" in newer PDF exports.
+  const { data: existingSessionsRaw } = await supabaseAdmin
+    .from("training_session")
+    .select("session_date, workout_template(name)")
+    .eq("athlete_id", athleteId);
+
+  type ExistingRow = { session_date: string; workout_template: { name: string } | null };
+  const existingKeys = new Set<string>(
+    (existingSessionsRaw as ExistingRow[] ?? []).map(
+      (s) => `${s.session_date}|${s.workout_template?.name ?? ""}`,
+    ),
+  );
+
   const createdSessionIds: string[] = [];
   let totalSetsCreated = 0;
+  let sessionsSkipped = 0;
 
   for (const session of training_sessions) {
     // Skip sessions with no date — Claude occasionally returns null for rows it can't parse
     if (!session.session_date) continue;
+
+    // Skip if a session for this date + template already exists (re-import / plan overlap)
+    const dedupeKey = `${session.session_date}|${session.workout_template_name}`;
+    if (existingKeys.has(dedupeKey)) {
+      sessionsSkipped++;
+      continue;
+    }
 
     const templateId = templateIdByName[session.workout_template_name] ?? null;
 
@@ -233,6 +257,7 @@ export async function POST(request: Request) {
     program_id: programId,
     templates_created: Object.keys(templateIdByName).length,
     sessions_created: createdSessionIds.length,
+    sessions_skipped: sessionsSkipped,
     sets_created: totalSetsCreated,
     template_ids: templateIdByName,
     session_ids: createdSessionIds,

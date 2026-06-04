@@ -230,15 +230,44 @@ export default function ReviewPage() {
   }
 
   if (submitStatus === "success") {
+    const summary = successSummary as {
+      athlete_name: string;
+      templates_created: number;
+      sessions_created: number;
+      sessions_skipped: number;
+      sets_created: number;
+    } | null;
     return (
       <div className="max-w-3xl mx-auto px-4 py-10 flex flex-col gap-6">
         <h1 className="text-xl font-bold text-foreground">Import confirmed</h1>
-        <pre className="bg-muted rounded-lg p-4 text-xs text-muted-foreground overflow-auto">
-          {JSON.stringify(successSummary, null, 2)}
-        </pre>
-        <Button onClick={() => router.push("/dashboard/import")} className="self-start">
-          Import another
-        </Button>
+        {summary && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[
+              { label: "Templates", value: summary.templates_created },
+              { label: "Sessions added", value: summary.sessions_created },
+              { label: "Sessions skipped", value: summary.sessions_skipped, note: "already existed" },
+              { label: "Sets added", value: summary.sets_created },
+            ].map(({ label, value, note }) => (
+              <Card key={label}>
+                <CardContent className="pt-4 pb-4">
+                  <p className="text-2xl font-bold text-foreground">{value}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
+                  {note && <p className="text-xs text-muted-foreground/60 mt-0.5">{note}</p>}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+        <div className="flex gap-3">
+          <Button onClick={() => router.push("/dashboard/import")} className="self-start">
+            Import another
+          </Button>
+          {summary?.athlete_name && (
+            <Button variant="outline" onClick={() => router.push("/dashboard")} className="self-start">
+              Back to dashboard
+            </Button>
+          )}
+        </div>
       </div>
     );
   }

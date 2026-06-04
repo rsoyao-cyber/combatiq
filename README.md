@@ -22,7 +22,7 @@ Practitioners enter test and training data. Athletes submit daily wellness check
 |---|---|
 | `athlete` | Athlete profiles — sport, weight class, competition level, training age |
 | `test_session` | One-off physical assessments (CMJ, grip strength, Yo-Yo, sprint, body comp) stored as `results_json` |
-| `daily_check_in` | Athlete-submitted daily wellness snapshot — sleep, fatigue, focus, mood, stress, diet, RPE, session types, injury, body weight |
+| `daily_check_in` | Athlete-submitted daily wellness snapshot — sleep, fatigue, focus, mood, stress, diet, RPE, session types, injury, body weight. Supports two-phase entry: `check_in_timing = "morning_only"` (wellbeing only) or `"complete"` (full). Row is upserted on `(athlete_id, checkin_date)`. |
 | `monthly_goal` | Practitioner-set monthly goals per athlete |
 | `rmr` | Resting metabolic rate measurements |
 | `workout_program` | Overarching training block (e.g. Phase 1, 8 weeks) |
@@ -92,11 +92,17 @@ Reports are saved to the `report_share` table with a UUID token. The shareable U
 ## Trainerize PDF import
 
 1. Upload PDF at `/dashboard/import`
-2. Claude extracts structured JSON (sessions, sets, templates, power benchmarks)
+2. Claude (`claude-sonnet-4-6`, up to 16 K output tokens) extracts structured JSON (sessions, sets, templates, power benchmarks). Typical cost: £0.20–0.40 for a 15–20 page PDF. Token count and cost are shown in the UI after parsing.
 3. Human review + edit step at `/dashboard/import/review`
-4. Confirm → write to Supabase
+4. Confirm → write to Supabase. The confirmation screen shows **sessions added** and **sessions skipped** (already existed).
 
 **Critical:** Trainerize exports AssaultBike power as kg. Always remap to `power_watts`.
+
+**Duplicate guard — two layers:**
+- *Program level*: if the same `trainerize_plan_id` was previously confirmed for this athlete, a 409 is returned before any writes. The review screen asks for explicit confirmation to proceed.
+- *Session level*: before inserting sessions, the route loads existing `(session_date, template_name)` pairs for the athlete and silently skips any match. This safely handles plan transitions where the new PDF's "Previous Stats" overlap with already-imported sessions.
+
+**Plan changes:** when a new training block starts, import the new PDF normally. The old program, sessions, and exercise sets remain in the database. The athlete dashboard and report generation query all sessions by `athlete_id`, so historical data is automatically included across programs.
 
 ## UI
 
@@ -106,6 +112,23 @@ All components use **shadcn/ui base-nova** style (`@base-ui/react` primitives, n
 - Traffic-light colours (emerald / amber / red) for intensity levels are intentional exceptions to the theme
 - Check-in and week entry forms match the dashboard light theme (primary-coloured header, white card body)
 - Athlete cards on the squad page are compact single-row entries (RAG dot · name · sport/weight/check-in · copy-link)
+
+## Pending DB migrations
+
+Run these in the Supabase SQL editor if not yet applied:
+
+```sql
+-- Session activity types (multi-select chips on check-in form)
+ALTER TABLE public.daily_check_in ADD COLUMN IF NOT EXISTS session_types text[];
+
+-- Two-phase check-in (morning wellbeing pass + post-training completion)
+ALTER TABLE public.daily_check_in ADD COLUMN IF NOT EXISTS check_in_timing text;
+
+-- Unique constraint required for upsert-on-conflict in log-checkin route
+ALTER TABLE public.daily_check_in
+  ADD CONSTRAINT IF NOT EXISTS daily_check_in_athlete_date_unique
+  UNIQUE (athlete_id, checkin_date);
+```
 
 ## Getting started
 
