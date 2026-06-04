@@ -125,8 +125,9 @@ ALTER TABLE public.daily_check_in ADD COLUMN IF NOT EXISTS session_types text[];
 ALTER TABLE public.daily_check_in ADD COLUMN IF NOT EXISTS check_in_timing text;
 
 -- Unique constraint required for upsert-on-conflict in log-checkin route
+-- Note: IF NOT EXISTS is not valid syntax for ADD CONSTRAINT in PostgreSQL
 ALTER TABLE public.daily_check_in
-  ADD CONSTRAINT IF NOT EXISTS daily_check_in_athlete_date_unique
+  ADD CONSTRAINT daily_check_in_athlete_date_unique
   UNIQUE (athlete_id, checkin_date);
 ```
 
