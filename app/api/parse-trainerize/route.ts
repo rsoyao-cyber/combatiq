@@ -107,8 +107,8 @@ export async function POST(request: Request) {
         let outputTokens = 0;
 
         const anthropicStream = client.messages.stream({
-          model: "claude-haiku-4-5-20251001",
-          max_tokens: 32000,
+          model: "claude-sonnet-4-6",
+          max_tokens: 16000,
           messages: [
             {
               role: "user",
@@ -144,7 +144,8 @@ export async function POST(request: Request) {
           JSON.stringify({
             input_tokens: inputTokens,
             output_tokens: outputTokens,
-            estimated_cost_usd:
+            // Sonnet 4.6 pricing: $3/MTok input, $15/MTok output
+          estimated_cost_usd:
               (inputTokens / 1_000_000) * 3 + (outputTokens / 1_000_000) * 15,
           });
 

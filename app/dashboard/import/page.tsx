@@ -84,7 +84,10 @@ export default function ImportPage({
     const end = cleanJson.lastIndexOf("}");
 
     if (start === -1 || end === -1 || end < start) {
-      setErrorMsg("Model returned malformed JSON — the PDF may be too large or have no extractable data");
+      setErrorMsg(
+        "Model returned no JSON — the PDF may have no extractable session data, " +
+        "or the response was empty. Check the raw output above for clues.",
+      );
       setStatus("error");
       return;
     }
@@ -98,7 +101,10 @@ export default function ImportPage({
       setStatus("success");
       router.push("/dashboard/import/review");
     } catch {
-      setErrorMsg("Failed to parse extracted JSON");
+      setErrorMsg(
+        "Extracted JSON was malformed — the response may have been truncated. " +
+        "Try again; if it persists the PDF may need to be split.",
+      );
       setStatus("error");
     }
   }
