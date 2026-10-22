@@ -51,6 +51,21 @@ export function getClientIp(request: Request): string {
   return "anonymous";
 }
 
+/**
+ * Returns false only when the client is over the limit. Fails open: if Redis
+ * is unreachable (e.g. the Upstash database was archived), the request is
+ * allowed through rather than taking the route down with a 500.
+ */
+export async function checkRateLimit(limiter: Ratelimit, request: Request): Promise<boolean> {
+  try {
+    const { success } = await limiter.limit(getClientIp(request));
+    return success;
+  } catch (err) {
+    console.error("[rate-limit] Redis unavailable, allowing request:", err);
+    return true;
+  }
+}
+
 /** Standard 429 response returned when a limit is exceeded. */
 export function tooManyRequests() {
   return NextResponse.json(

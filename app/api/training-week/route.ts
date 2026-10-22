@@ -4,7 +4,7 @@ import type { Database } from "@/lib/database.types";
 import type { WeekScheduleJson } from "@/lib/training-week-types";
 import { emptyWeekSchedule } from "@/lib/training-week-types";
 import { TrainingWeekPutSchema } from "@/lib/schemas";
-import { rateLimits, getClientIp, tooManyRequests } from "@/lib/rate-limit";
+import { rateLimits, checkRateLimit, tooManyRequests } from "@/lib/rate-limit";
 
 /** Returns true if `dateStr` (YYYY-MM-DD) is a Monday (ISO DOW = 1). */
 function isMonday(dateStr: string): boolean {
@@ -53,8 +53,7 @@ export async function GET(request: Request) {
 // }
 
 export async function PUT(request: Request) {
-  const { success } = await rateLimits.trainingWeekPut.limit(getClientIp(request));
-  if (!success) return tooManyRequests();
+  if (!(await checkRateLimit(rateLimits.trainingWeekPut, request))) return tooManyRequests();
 
   const body = await request.json();
   const result = TrainingWeekPutSchema.safeParse(body);

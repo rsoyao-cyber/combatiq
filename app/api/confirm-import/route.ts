@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { ConfirmImportSchema } from "@/lib/schemas";
-import { rateLimits, getClientIp, tooManyRequests } from "@/lib/rate-limit";
+import { rateLimits, checkRateLimit, tooManyRequests } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
-  const { success } = await rateLimits.confirmImport.limit(getClientIp(request));
-  if (!success) return tooManyRequests();
+  if (!(await checkRateLimit(rateLimits.confirmImport, request))) return tooManyRequests();
 
   const body = await request.json();
   const result = ConfirmImportSchema.safeParse(body);

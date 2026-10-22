@@ -5,7 +5,7 @@ import { getWellbeingTrends, getExerciseProgressions, getInjuryFlags } from "@/l
 import type { TrainingWeekSnapshot, WeekScheduleJson, SlotIntensity } from "@/lib/training-week-types";
 import { getMondayOfWeek, offsetWeekStart } from "@/lib/training-week-types";
 import { GenerateReportSchema } from "@/lib/schemas";
-import { rateLimits, getClientIp, tooManyRequests } from "@/lib/rate-limit";
+import { rateLimits, checkRateLimit, tooManyRequests } from "@/lib/rate-limit";
 
 export const maxDuration = 120;
 
@@ -36,8 +36,7 @@ function getExerciseTrend(values: number[]): "up" | "down" | "flat" {
 // ─── route ───────────────────────────────────────────────────────────────────
 
 export async function POST(request: Request) {
-  const { success } = await rateLimits.generateReport.limit(getClientIp(request));
-  if (!success) return tooManyRequests();
+  if (!(await checkRateLimit(rateLimits.generateReport, request))) return tooManyRequests();
 
   const body = await request.json();
   const result = GenerateReportSchema.safeParse(body);

@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
-import { rateLimits, getClientIp, tooManyRequests } from "@/lib/rate-limit";
+import { rateLimits, checkRateLimit, tooManyRequests } from "@/lib/rate-limit";
 
 // Allow up to 5 minutes on Vercel
 export const maxDuration = 300;
@@ -71,8 +71,7 @@ Sessions appear in the Previous Stats tables -- extract ALL dated rows,
 one TrainingSession object per date column.`;
 
 export async function POST(request: Request) {
-  const { success } = await rateLimits.parseTrainerize.limit(getClientIp(request));
-  if (!success) return tooManyRequests();
+  if (!(await checkRateLimit(rateLimits.parseTrainerize, request))) return tooManyRequests();
 
   const formData = await request.formData();
   const file = formData.get("file");
