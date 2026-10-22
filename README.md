@@ -113,23 +113,11 @@ All components use **shadcn/ui base-nova** style (`@base-ui/react` primitives, n
 - Check-in and week entry forms match the dashboard light theme (primary-coloured header, white card body)
 - Athlete cards on the squad page are compact single-row entries (RAG dot · name · sport/weight/check-in · copy-link)
 
-## Pending DB migrations
+## Database migrations
 
-Run these in the Supabase SQL editor if not yet applied:
-
-```sql
--- Session activity types (multi-select chips on check-in form)
-ALTER TABLE public.daily_check_in ADD COLUMN IF NOT EXISTS session_types text[];
-
--- Two-phase check-in (morning wellbeing pass + post-training completion)
-ALTER TABLE public.daily_check_in ADD COLUMN IF NOT EXISTS check_in_timing text;
-
--- Unique constraint required for upsert-on-conflict in log-checkin route
--- Note: IF NOT EXISTS is not valid syntax for ADD CONSTRAINT in PostgreSQL
-ALTER TABLE public.daily_check_in
-  ADD CONSTRAINT daily_check_in_athlete_date_unique
-  UNIQUE (athlete_id, checkin_date);
-```
+`supabase/schema.sql` is the base schema; apply it first, then every file in
+`supabase/migrations/` in filename order. All of these are already applied to
+the production database.
 
 ## Getting started
 

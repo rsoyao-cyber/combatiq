@@ -281,3 +281,50 @@ CREATE INDEX IF NOT EXISTS idx_training_week_snapshot_athlete_id
   ON public.training_week_snapshot (athlete_id);
 CREATE INDEX IF NOT EXISTS idx_training_week_snapshot_week_start
   ON public.training_week_snapshot (week_start_date);
+
+
+-- ---------------------------------------------------------------
+-- 11. IMPORT LOG
+-- One row per Trainerize PDF import (audit trail for /api/confirm-import).
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.import_log (
+  id                   uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  athlete_id           uuid REFERENCES public.athlete (id) ON DELETE SET NULL,
+  filename             text,
+  imported_at          timestamptz DEFAULT now(),
+  status               text CHECK (status IN ('pending', 'reviewed', 'confirmed', 'failed')),
+  programs_created     integer DEFAULT 0,
+  sessions_created     integer DEFAULT 0,
+  sets_created         integer DEFAULT 0,
+  manually_corrected   boolean DEFAULT false,
+  notes                text,
+  trainerize_plan_id   integer
+);
+
+ALTER TABLE public.import_log ENABLE ROW LEVEL SECURITY;
+
+CREATE INDEX IF NOT EXISTS idx_import_log_athlete_id
+  ON public.import_log (athlete_id);
+
+
+-- ---------------------------------------------------------------
+-- 12. REPORT SHARE
+-- Generated reports, viewable without login at /report/[token].
+-- viewed_at is added in migration 20260418100000_report_viewed_at.sql.
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.report_share (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  athlete_id    uuid REFERENCES public.athlete (id) ON DELETE CASCADE,
+  report_type   text CHECK (report_type IN ('monthly', 'prefight')),
+  report_json   jsonb NOT NULL,
+  token         uuid UNIQUE DEFAULT gen_random_uuid(),
+  created_at    timestamptz DEFAULT now(),
+  expires_at    timestamptz DEFAULT (now() + interval '30 days')
+);
+
+ALTER TABLE public.report_share ENABLE ROW LEVEL SECURITY;
+
+CREATE INDEX IF NOT EXISTS idx_report_share_athlete_id
+  ON public.report_share (athlete_id);
+CREATE INDEX IF NOT EXISTS idx_report_share_token
+  ON public.report_share (token);

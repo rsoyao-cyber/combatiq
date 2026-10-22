@@ -117,7 +117,7 @@ function DeviationList({
             </div>
           </div>
           {d.note && (
-            <p className="text-xs text-muted-foreground italic">"{d.note}"</p>
+            <p className="text-xs text-muted-foreground italic">&ldquo;{d.note}&rdquo;</p>
           )}
         </div>
       ))}

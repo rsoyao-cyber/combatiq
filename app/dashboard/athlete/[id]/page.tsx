@@ -318,7 +318,7 @@ export default async function AthletePage({
 
   const programStart = latestProgramResult.data?.start_date ?? null;
   const weeksInProgram = programStart
-    ? Math.max(1, Math.floor((Date.now() - new Date(programStart).getTime()) / (1000 * 60 * 60 * 24 * 7)))
+    ? Math.max(1, Math.floor((new Date().getTime() - new Date(programStart).getTime()) / (1000 * 60 * 60 * 24 * 7)))
     : null;
 
   // ── Recent activity (last 7 check-ins, descending) ───────────────────────────
