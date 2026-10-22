@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { getWellbeingTrends, getExerciseProgressions, getInjuryFlags } from "@/lib/analytics";
+import { getWellbeingTrends, getExerciseProgressions, getInjuryFlags, getSessionLoads } from "@/lib/analytics";
 import type { TrainingWeekSnapshot, WeekScheduleJson, SlotIntensity } from "@/lib/training-week-types";
 import { getMondayOfWeek, offsetWeekStart } from "@/lib/training-week-types";
 import { GenerateReportSchema } from "@/lib/schemas";
@@ -72,6 +72,13 @@ export async function POST(request: Request) {
     .gte("checkin_date", cutoff30)
     .order("checkin_date", { ascending: true });
 
+  // ── 2b. Athlete-logged sessions, same window ───────────────────────────────
+  const { data: loggedSessions } = await supabaseAdmin
+    .from("check_in_session")
+    .select("rpe, sparring_rounds")
+    .eq("athlete_id", athleteId)
+    .gte("session_date", cutoff30);
+
   // ── 3. Last 3 training sessions with sets ───────────────────────────────────
   const { data: recentSessions } = await supabaseAdmin
     .from("training_session")
@@ -102,10 +109,11 @@ export async function POST(request: Request) {
     .order("week_start_date", { ascending: true });
 
   // ── 5a. Analytics ───────────────────────────────────────────────────────────
-  const [trends, exerciseProgressions, injuries] = await Promise.all([
+  const [trends, exerciseProgressions, injuries, weeklyLoads] = await Promise.all([
     getWellbeingTrends(athleteId, 30),
     getExerciseProgressions(athleteId),
     getInjuryFlags(athleteId),
+    getSessionLoads(athleteId, 4),
   ]);
 
   // ── 5a. Pre-compute stats ────────────────────────────────────────────────────
@@ -150,7 +158,8 @@ export async function POST(request: Request) {
   }));
 
   // Session RPE average
-  const rpeValues = rows.map((r) => r.session_rpe).filter((v): v is number => v !== null);
+  const sessionRows = loggedSessions ?? [];
+  const rpeValues = sessionRows.map((s) => s.rpe);
   const avgRpe = rpeValues.length ? round2(avg(rpeValues)) : null;
 
   // Nutrition compliance
@@ -160,7 +169,7 @@ export async function POST(request: Request) {
     : null;
 
   // Sparring load average
-  const sparringRows = rows.map((r) => r.sparring_load_rounds).filter((v): v is number => v !== null);
+  const sparringRows = sessionRows.map((s) => s.sparring_rounds).filter((v): v is number => v !== null);
   const avgSparringRounds = sparringRows.length ? round2(avg(sparringRows)) : null;
 
   // ── 5b. Training week schedule stats ────────────────────────────────────────
@@ -246,7 +255,9 @@ export async function POST(request: Request) {
     report_period_days: 30,
     checkin_count: rows.length,
     wellbeing_domain_stats: domainStats,
+    sessions_logged: sessionRows.length,
     avg_session_rpe: avgRpe,
+    weekly_load_au: weeklyLoads.map((w) => ({ week_start: w.weekStart, load_au: w.load })),
     nutrition_compliance_pct: nutritionCompliance,
     avg_sparring_rounds_per_session: avgSparringRounds,
     exercise_coverage: {
@@ -295,6 +306,7 @@ Rules:
 - Never fabricate statistics. Only reference numbers from the stats JSON.
 - If data is missing for a section, acknowledge it honestly.
 - Use all available exercise_summaries data when describing performance; do not focus on only one exercise unless it is the only one present.
+- weekly_load_au is session-RPE training load (RPE × minutes, summed per week) from the athlete's own session logs; sessions_logged is how many sessions they logged this month. Use these for the conditioning paragraph.
 - training_week_schedule contains the planned (primary) and actual (alternative) weekly slot counts and adherence. Use these to comment on training load distribution (high/med/rest balance) and plan adherence. Do NOT invent sessions that are not in the data. If weeks_with_primary_plan is 0, state that no weekly schedule data was recorded.
 - Tone: direct, honest, evidence-based. Coach talking to athlete — not a third-party analyst report.
 - strengths and development_areas must each be exactly 3 items.

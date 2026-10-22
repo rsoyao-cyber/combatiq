@@ -21,9 +21,17 @@ All athlete ratings use 0-5 (0 = very poor, 5 = excellent)
 ## Check-in session types
 Athletes select one or more activity types per session on the Training Load step.
 Options: Running, Strength, BJJ/Grappling, Boxing/Pads, Sparring, Conditioning, Mobility, Competition, Other.
-Multi-session check-ins deduplicate types across sessions before storing.
-Stored in daily_check_in.session_types (text[], nullable).
-Displayed as chips in the Recent Activity table on the athlete dashboard.
+Each session is stored as its own row in check_in_session (types, duration_mins, rpe, sparring_rounds).
+Displayed as chips in the Recent Activity table on the athlete dashboard (union of the day's sessions).
+
+## Training load
+Session-RPE (Foster): load (AU) = RPE (0-10) × minutes, per session. Never multiply by 2.
+- check_in_session.load_au is a generated column — read it, don't recompute it
+- A session only exists if it has a duration (1-480 min); blank duration = rest day
+- /api/log-checkin replaces the day's sessions via rpc("replace_check_in_sessions") on full submits only
+- lib/load.ts — sessionLoad(), rpeBand() (5 colour bands), summariseDay()
+- getSessionLoads() in lib/analytics.ts sums load_au per ISO week
+- daily_check_in.session_rpe / session_duration_mins / sparring_load_rounds / session_types are deprecated
 
 ## Who fills in what
 - Athlete: daily check-in form (mobile link, no login required)

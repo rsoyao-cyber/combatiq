@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { CheckInSchema } from "@/lib/schemas";
+import { CheckInSchema, type CheckInSessionInput } from "@/lib/schemas";
+import { sessionLoad, summariseDay } from "@/lib/load";
 
 function getResend() {
   return new Resend(process.env.RESEND_API_KEY ?? "placeholder");
@@ -29,11 +30,8 @@ function buildEmailHtml(data: {
   stress: number;
   diet_quality: number;
   hitting_nutrition_targets?: boolean | null;
-  session_rpe?: number | null;
-  session_duration_mins?: number | null;
-  sparring_load_rounds?: number | null;
+  sessions: CheckInSessionInput[];
   weight_kg?: number | null;
-  session_types?: string[] | null;
   injury_area?: string | null;
   injury_pain_rating?: number | null;
   open_notes?: string | null;
@@ -41,6 +39,8 @@ function buildEmailHtml(data: {
 }): string {
   const hasInjury = !!data.injury_area;
   const injuryColour = hasInjury && (data.injury_pain_rating ?? 0) >= 3 ? "#dc2626" : "#d97706";
+
+  const day = summariseDay(data.sessions);
 
   const row = (label: string, value: string) => `
     <tr>
@@ -91,10 +91,13 @@ function buildEmailHtml(data: {
 
           <p style="margin:0 0 12px;color:#71717a;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">Training</p>
           <table cellpadding="0" cellspacing="0" style="width:100%;margin-bottom:20px;">
-            ${row("Activity types", data.session_types?.length ? data.session_types.join(", ") : "—")}
-            ${row("Session RPE", data.session_rpe != null ? `${data.session_rpe}/10` : "—")}
-            ${row("Duration", data.session_duration_mins != null ? `${data.session_duration_mins} min` : "—")}
-            ${row("Sparring rounds", data.sparring_load_rounds != null ? String(data.sparring_load_rounds) : "—")}
+            ${data.sessions.length === 0 ? row("Sessions", data.check_in_timing === "morning_only" ? "Not logged yet" : "Rest day") : data.sessions.map((s, i) =>
+              row(
+                `Session ${i + 1}`,
+                `${s.session_types.length ? s.session_types.join(", ") : "Training"} · ${s.duration_mins} min · RPE ${s.rpe}/10 · ${sessionLoad(s.rpe, s.duration_mins)} AU${s.sparring_rounds ? ` · ${s.sparring_rounds} sparring rounds` : ""}`,
+              ),
+            ).join("")}
+            ${day.count > 1 ? row("Day total", `${day.totalMins} min · ${day.totalLoad} AU`) : ""}
           </table>
 
           <p style="margin:0 0 12px;color:#71717a;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">Nutrition &amp; Body</p>
@@ -140,16 +143,34 @@ export async function POST(request: Request) {
     athlete_name,
     checkin_date,
     log_period_start,
+    sessions: sessionsInput,
+    session_rpe,
+    session_duration_mins,
+    sparring_load_rounds,
+    session_types,
     ...checkinFields
   } = result.data;
 
   // Derive timing if not explicitly provided
-  const hasSessionData = checkinFields.session_rpe != null;
+  const hasSessionData = sessionsInput !== undefined || session_rpe != null;
   const check_in_timing =
     checkinFields.check_in_timing ?? (hasSessionData ? "complete" : "morning_only");
 
+  // Forms loaded before per-session records send one daily aggregate instead.
+  // Only a recorded duration counts as a session (RPE alone was the slider default).
+  const sessions: CheckInSessionInput[] =
+    sessionsInput ??
+    (session_rpe != null && session_duration_mins != null && session_duration_mins >= 1
+      ? [{
+          session_types: session_types ?? [],
+          duration_mins: session_duration_mins,
+          rpe: session_rpe,
+          sparring_rounds: sparring_load_rounds ?? null,
+        }]
+      : []);
+
   // ── 1. Upsert check-in (handles both first submit and post-training completion) ──
-  const { error: dbError } = await supabaseAdmin.from("daily_check_in").upsert(
+  const { data: checkIn, error: dbError } = await supabaseAdmin.from("daily_check_in").upsert(
     {
       athlete_id,
       checkin_date,
@@ -162,21 +183,30 @@ export async function POST(request: Request) {
       stress: checkinFields.stress,
       diet_quality: checkinFields.diet_quality,
       hitting_nutrition_targets: checkinFields.hitting_nutrition_targets ?? null,
-      sparring_load_rounds: checkinFields.sparring_load_rounds ?? null,
-      session_rpe: checkinFields.session_rpe ?? null,
-      session_duration_mins: checkinFields.session_duration_mins ?? null,
       injury_area: checkinFields.injury_area ?? null,
       injury_pain_rating: checkinFields.injury_pain_rating ?? null,
       open_notes: checkinFields.open_notes ?? null,
       weight_kg: checkinFields.weight_kg ?? null,
-      session_types: checkinFields.session_types ?? null,
       check_in_timing,
     },
     { onConflict: "athlete_id,checkin_date" },
-  );
+  ).select("id").single();
 
   if (dbError) {
     return NextResponse.json({ error: dbError.message }, { status: 500 });
+  }
+
+  // ── 1b. Replace the day's sessions (full submits only — a morning-only
+  //        submit must not wipe sessions already logged) ─────────────────────
+  if (check_in_timing === "complete") {
+    const { error: sessionError } = await supabaseAdmin.rpc("replace_check_in_sessions", {
+      p_check_in_id: checkIn.id,
+      p_sessions: sessions,
+    });
+
+    if (sessionError) {
+      return NextResponse.json({ error: sessionError.message }, { status: 500 });
+    }
   }
 
   // ── 2. Log menstrual cycle if flagged ────────────────────────────────────
@@ -195,7 +225,7 @@ export async function POST(request: Request) {
       from: process.env.RESEND_FROM_EMAIL || "CombatIQ <onboarding@resend.dev>",
       to: adminEmail,
       subject: `${check_in_timing === "morning_only" ? "Morning check-in" : "Check-in"}: ${athlete_name} · ${checkin_date}`,
-      html: buildEmailHtml({ athlete_name, checkin_date, ...checkinFields, check_in_timing }),
+      html: buildEmailHtml({ athlete_name, checkin_date, ...checkinFields, sessions, check_in_timing }),
     });
   }
 

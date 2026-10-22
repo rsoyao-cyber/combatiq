@@ -167,6 +167,15 @@ export type UpdateAthleteInput = z.infer<typeof UpdateAthleteSchema>;
 
 const ratingSchema = z.number().int().min(0).max(5);
 
+export const CheckInSessionSchema = z.object({
+  session_types: z.array(z.string().max(50)).max(10).default([]),
+  duration_mins: z.number().int().min(1).max(480),
+  rpe: z.number().int().min(0).max(10),
+  sparring_rounds: z.number().int().min(0).nullable().optional(),
+});
+
+export type CheckInSessionInput = z.infer<typeof CheckInSessionSchema>;
+
 export const CheckInSchema = z.object({
   athlete_id: uuidSchema,
   athlete_name: z.string().min(1).max(200),
@@ -180,6 +189,9 @@ export const CheckInSchema = z.object({
   stress: ratingSchema,
   diet_quality: ratingSchema,
   hitting_nutrition_targets: z.boolean().nullable().optional(),
+  sessions: z.array(CheckInSessionSchema).max(5).optional(),
+  // Legacy daily aggregate — sent by forms loaded before per-session records.
+  // Converted to a single session server-side.
   sparring_load_rounds: z.number().int().min(0).nullable().optional(),
   session_rpe: z.number().int().min(1).max(10).nullable().optional(),
   session_duration_mins: z.number().int().min(0).nullable().optional(),

@@ -105,6 +105,13 @@ type ExistingCheckIn = {
   check_in_timing: string | null;
 } | null;
 
+export type ExistingSession = {
+  session_types: string[];
+  duration_mins: number;
+  rpe: number;
+  sparring_rounds: number | null;
+};
+
 // ─── Main form ────────────────────────────────────────────────────────────────
 
 export function CheckInForm({
@@ -112,11 +119,13 @@ export function CheckInForm({
   athleteName,
   isFemale = false,
   existingCheckIn = null,
+  existingSessions = [],
 }: {
   athleteId: string;
   athleteName: string;
   isFemale?: boolean;
   existingCheckIn?: ExistingCheckIn;
+  existingSessions?: ExistingSession[];
 }) {
   const today = new Date().toISOString().split("T")[0];
   const isContinuing = existingCheckIn?.check_in_timing === "morning_only";
@@ -143,9 +152,16 @@ export function CheckInForm({
   ];
 
   type Session = { rpe: number; duration: string; sparring: string; types: string[] };
-  const [sessions, setSessions] = useState<Session[]>([
-    { rpe: 5, duration: "", sparring: "", types: [] },
-  ]);
+  const [sessions, setSessions] = useState<Session[]>(
+    existingSessions.length > 0
+      ? existingSessions.map((s) => ({
+          rpe: s.rpe,
+          duration: String(s.duration_mins),
+          sparring: s.sparring_rounds != null ? String(s.sparring_rounds) : "",
+          types: s.session_types,
+        }))
+      : [{ rpe: 5, duration: "", sparring: "", types: [] }],
+  );
 
   const [hasInjury, setHasInjury] = useState(false);
   const [logPeriodStart, setLogPeriodStart] = useState(false);
@@ -230,16 +246,15 @@ export function CheckInForm({
   async function handleSubmit() {
     setStatus("submitting");
 
-    const totalDuration = sessions.reduce(
-      (sum, s) => sum + (s.duration !== "" ? Number(s.duration) : 0), 0,
-    );
-    const totalSparring = sessions.reduce(
-      (sum, s) => sum + (s.sparring !== "" ? Number(s.sparring) : 0), 0,
-    );
-    const avgRpe = Math.round(
-      sessions.reduce((sum, s) => sum + s.rpe, 0) / sessions.length,
-    );
-    const allTypes = [...new Set(sessions.flatMap((s) => s.types))];
+    // A session only counts once it has a duration — blank means rest day.
+    const loggedSessions = sessions
+      .filter((s) => s.duration !== "" && Number(s.duration) >= 1)
+      .map((s) => ({
+        session_types: s.types,
+        duration_mins: Number(s.duration),
+        rpe: s.rpe,
+        sparring_rounds: s.sparring !== "" ? Number(s.sparring) : null,
+      }));
 
     const res = await fetch("/api/log-checkin", {
       method: "POST",
@@ -257,15 +272,12 @@ export function CheckInForm({
         stress: fields.stress,
         diet_quality: fields.diet_quality,
         hitting_nutrition_targets: fields.hitting_nutrition_targets,
-        session_rpe: avgRpe,
-        session_duration_mins: totalDuration > 0 ? totalDuration : null,
-        sparring_load_rounds: totalSparring > 0 ? totalSparring : null,
+        sessions: loggedSessions,
         injury_area: hasInjury ? (fields.injury_area || null) : null,
         injury_pain_rating: hasInjury && fields.injury_area ? fields.injury_pain_rating : null,
         open_notes: fields.open_notes || null,
         weight_kg: fields.weight_kg !== "" ? Number(fields.weight_kg) : null,
         log_period_start: logPeriodStart,
-        session_types: allTypes.length > 0 ? allTypes : null,
         check_in_timing: "complete",
       }),
     });
@@ -431,11 +443,11 @@ export function CheckInForm({
             )}
 
             <p className="text-xs text-muted-foreground text-center">
-              Multiple sessions? RPE is averaged, duration and sparring are totalled.
+              Leave duration blank on rest days. Each session&apos;s load is RPE × minutes.
             </p>
 
-            {/* Morning-only escape hatch — only shown on fresh (non-continuation) forms */}
-            {!isContinuing && (
+            {/* Morning-only escape hatch — only shown before anything is saved today */}
+            {!existingCheckIn && (
               <button
                 type="button"
                 onClick={handleMorningSubmit}

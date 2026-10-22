@@ -53,6 +53,66 @@ export type Database = {
         }
         Relationships: []
       }
+      check_in_session: {
+        Row: {
+          athlete_id: string
+          check_in_id: string
+          created_at: string
+          duration_mins: number
+          id: string
+          load_au: number
+          position: number
+          rpe: number
+          session_date: string
+          session_types: string[]
+          source: "athlete" | "backfill"
+          sparring_rounds: number | null
+        }
+        Insert: {
+          athlete_id: string
+          check_in_id: string
+          created_at?: string
+          duration_mins: number
+          id?: string
+          position: number
+          rpe: number
+          session_date: string
+          session_types?: string[]
+          source?: "athlete" | "backfill"
+          sparring_rounds?: number | null
+        }
+        Update: {
+          athlete_id?: string
+          check_in_id?: string
+          created_at?: string
+          duration_mins?: number
+          id?: string
+          position?: number
+          rpe?: number
+          session_date?: string
+          session_types?: string[]
+          source?: "athlete" | "backfill"
+          sparring_rounds?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "check_in_session_check_in_id_fkey"
+            columns: ["check_in_id"]
+            isOneToOne: false
+            referencedRelation: "daily_check_in"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "check_in_session_athlete_id_fkey"
+            columns: ["athlete_id"]
+            isOneToOne: false
+            referencedRelation: "athlete"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      // session_rpe, session_duration_mins, sparring_load_rounds and
+      // session_types are deprecated (no longer written) — use check_in_session.
       daily_check_in: {
         Row: {
           athlete_id: string
@@ -617,7 +677,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      replace_check_in_sessions: {
+        Args: {
+          p_check_in_id: string
+          p_sessions: Json
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

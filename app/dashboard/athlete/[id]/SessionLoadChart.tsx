@@ -31,7 +31,7 @@ export function SessionLoadChart({ loads }: { loads: SessionLoadPoint[] }) {
     <div className="bg-card rounded-xl border border-border p-4">
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-4">
         <span className="inline-block w-3 h-3 rounded-sm bg-primary" />
-        Weekly load (AU) — Foster sRPE method
+        Weekly load (AU) — RPE × minutes per session
       </div>
       <ResponsiveContainer width="100%" height={220}>
         <BarChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>

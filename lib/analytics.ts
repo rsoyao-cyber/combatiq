@@ -428,7 +428,7 @@ export async function getInjuryFlags(athleteId: string): Promise<InjuryFlag[]> {
 
 export type SessionLoadPoint = {
   weekStart: string; // ISO date of Monday
-  load: number;      // total AU for the week (Foster sRPE: (rpe * 2) * duration_mins)
+  load: number;      // total AU for the week (Foster sRPE: rpe × duration_mins per session)
 };
 
 export async function getSessionLoads(
@@ -438,13 +438,11 @@ export async function getSessionLoads(
   const from = isoDateDaysAgo(weeks * 7);
 
   const { data, error } = await supabaseAdmin
-    .from("daily_check_in")
-    .select("checkin_date, session_rpe, session_duration_mins")
+    .from("check_in_session")
+    .select("session_date, load_au")
     .eq("athlete_id", athleteId)
-    .gte("checkin_date", from)
-    .not("session_rpe", "is", null)
-    .not("session_duration_mins", "is", null)
-    .order("checkin_date", { ascending: true });
+    .gte("session_date", from)
+    .order("session_date", { ascending: true });
 
   if (error) throw new Error(`getSessionLoads: ${error.message}`);
 
@@ -452,11 +450,8 @@ export async function getSessionLoads(
   const weekMap = new Map<string, number>();
 
   for (const row of data ?? []) {
-    const rpe = row.session_rpe as number;
-    const duration = row.session_duration_mins as number;
-    const load = (rpe * 2) * duration;
-    const weekStart = getMondayOf(new Date(row.checkin_date));
-    weekMap.set(weekStart, (weekMap.get(weekStart) ?? 0) + load);
+    const weekStart = getMondayOf(new Date(row.session_date));
+    weekMap.set(weekStart, (weekMap.get(weekStart) ?? 0) + row.load_au);
   }
 
   // Return sorted ascending, filling in all weeks in the window (including zeros)

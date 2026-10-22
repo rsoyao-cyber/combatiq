@@ -9,6 +9,7 @@ import {
   getSessionLoads,
 } from "@/lib/analytics";
 import { getMondayOfWeek } from "@/lib/training-week-types";
+import { rpeBand, summariseDay } from "@/lib/load";
 import type { TrainingWeekSnapshot } from "@/lib/training-week-types";
 import { GoalEditor } from "./GoalEditor";
 import { EditAthleteModal } from "./EditAthleteModal";
@@ -62,7 +63,7 @@ function StatCard({
   trend,
   trendUp,
   badge,
-  badgeVariant,
+  badgeClassName,
 }: {
   title: string;
   value: string | number | null;
@@ -70,13 +71,8 @@ function StatCard({
   trend?: string | null;
   trendUp?: boolean;
   badge?: string;
-  badgeVariant?: "green" | "amber" | "red";
+  badgeClassName?: string;
 }) {
-  const badgeClasses = {
-    green:  "bg-emerald-100 text-emerald-700",
-    amber:  "bg-amber-100   text-amber-700",
-    red:    "bg-red-100     text-red-700",
-  };
 
   return (
     <Card className="shadow-sm">
@@ -109,11 +105,11 @@ function StatCard({
                 {trendUp ? "↑" : "↓"} {trend}
               </span>
             )}
-            {badge && badgeVariant && (
+            {badge && badgeClassName && (
               <span
                 className={cn(
                   "inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full",
-                  badgeClasses[badgeVariant],
+                  badgeClassName,
                 )}
               >
                 {badge}
@@ -170,6 +166,7 @@ export default async function AthletePage({
     athleteResult,
     goalResult,
     checkInsResult,
+    checkInSessionsResult,
     trendsResult,
     exerciseProgressionsResult,
     injuryResult,
@@ -199,11 +196,19 @@ export default async function AthletePage({
     supabaseAdmin
       .from("daily_check_in")
       .select(
-        "checkin_date, sleep_quality, physical_fatigue, mental_focus, motivation, mood, stress, diet_quality, session_rpe, session_duration_mins, session_types",
+        "checkin_date, sleep_quality, physical_fatigue, mental_focus, motivation, mood, stress, diet_quality",
       )
       .eq("athlete_id", id)
       .gte("checkin_date", cutoff28)
       .order("checkin_date", { ascending: true }),
+
+    supabaseAdmin
+      .from("check_in_session")
+      .select("session_date, position, session_types, duration_mins, rpe, load_au")
+      .eq("athlete_id", id)
+      .gte("session_date", cutoff28)
+      .order("session_date", { ascending: true })
+      .order("position", { ascending: true }),
 
     getWellbeingTrends(id, 28),
     getExerciseProgressions(id),
@@ -270,6 +275,7 @@ export default async function AthletePage({
   const athlete    = athleteResult.data;
   const goal       = goalResult.data?.goal_text ?? "";
   const checkIns   = checkInsResult.data ?? [];
+  const checkInSessions = checkInSessionsResult.data ?? [];
   const injuries   = injuryResult;
   const sessions   = sessionsResult.data ?? [];
   const weekSnapshot = (weekSnapshotResult.data ?? null) as TrainingWeekSnapshot | null;
@@ -302,19 +308,10 @@ export default async function AthletePage({
       ? latestWeight.weight_kg - weekAgoWeight.weight_kg
       : null;
 
-  const descendingCheckIns = [...checkIns].reverse();
-  const lastWithLoad = descendingCheckIns.find(
-    (c) => c.session_rpe != null && c.session_duration_mins != null,
-  );
-  const lastLoad = lastWithLoad
-    ? Math.round((lastWithLoad.session_rpe as number) * 2 * (lastWithLoad.session_duration_mins as number))
-    : null;
-  const lastRpe = descendingCheckIns.find((c) => c.session_rpe != null)?.session_rpe ?? null;
-  const rpeVariant =
-    lastRpe == null ? undefined
-    : lastRpe < 3 ? ("green" as const)
-    : lastRpe <= 4 ? ("amber" as const)
-    : ("red" as const);
+  const lastSession = checkInSessions.at(-1) ?? null;
+  const lastLoad = lastSession?.load_au ?? null;
+  const lastRpe = lastSession?.rpe ?? null;
+  const lastRpeBand = lastRpe != null ? rpeBand(lastRpe) : null;
 
   const programStart = latestProgramResult.data?.start_date ?? null;
   const weeksInProgram = programStart
@@ -323,6 +320,10 @@ export default async function AthletePage({
 
   // ── Recent activity (last 7 check-ins, descending) ───────────────────────────
   const recentActivity = [...checkIns].reverse().slice(0, 7);
+  const sessionsByDate = new Map<string, typeof checkInSessions>();
+  for (const s of checkInSessions) {
+    sessionsByDate.set(s.session_date, [...(sessionsByDate.get(s.session_date) ?? []), s]);
+  }
 
   return (
     <div className="px-4 py-6 max-w-7xl mx-auto flex flex-col gap-6">
@@ -402,12 +403,8 @@ export default async function AthletePage({
         <StatCard
           title="Last session RPE"
           value={lastRpe}
-          badge={
-            lastRpe != null
-              ? lastRpe < 3 ? "Easy" : lastRpe <= 4 ? "Moderate" : "Hard"
-              : undefined
-          }
-          badgeVariant={rpeVariant}
+          badge={lastRpeBand?.label}
+          badgeClassName={lastRpeBand?.className}
         />
         <StatCard
           title="Weeks in program"
@@ -527,19 +524,17 @@ export default async function AthletePage({
               </TableHeader>
               <TableBody>
                 {recentActivity.map((c, i) => {
-                  const rpe = c.session_rpe as number | null;
-                  const dur = c.session_duration_mins as number | null;
-                  const load = rpe != null && dur != null ? Math.round(rpe * 2 * dur) : null;
-                  const types = (c as { session_types?: string[] | null }).session_types;
+                  const daySessions = sessionsByDate.get(c.checkin_date) ?? [];
+                  const day = summariseDay(daySessions);
                   return (
                     <TableRow key={i}>
                       <TableCell className="font-medium tabular-nums text-sm">
                         {c.checkin_date}
                       </TableCell>
                       <TableCell>
-                        {types && types.length > 0 ? (
+                        {day.types.length > 0 ? (
                           <div className="flex flex-wrap gap-1">
-                            {types.map((t) => (
+                            {day.types.map((t) => (
                               <span key={t} className="text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">
                                 {t}
                               </span>
@@ -547,29 +542,33 @@ export default async function AthletePage({
                           </div>
                         ) : (
                           <span className="text-sm text-muted-foreground">
-                            {rpe != null ? "Training" : "Rest day"}
+                            {day.count > 0 ? "Training" : "Rest day"}
                           </span>
                         )}
                       </TableCell>
                       <TableCell>
-                        {rpe != null ? (
-                          <span className={cn(
-                            "text-xs font-semibold px-2 py-0.5 rounded-full",
-                            rpe < 3 ? "bg-emerald-100 text-emerald-700"
-                            : rpe <= 4 ? "bg-amber-100 text-amber-700"
-                            : "bg-red-100 text-red-700",
-                          )}>
-                            {rpe}
-                          </span>
+                        {day.count > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {daySessions.map((s) => (
+                              <span
+                                key={s.position}
+                                className={cn("text-xs font-semibold px-2 py-0.5 rounded-full", rpeBand(s.rpe).className)}
+                              >
+                                {s.rpe}
+                              </span>
+                            ))}
+                          </div>
                         ) : (
                           <span className="text-muted-foreground">—</span>
                         )}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
-                        {dur != null ? `${dur} min` : "—"}
+                        {day.count > 0
+                          ? `${day.totalMins} min${day.count > 1 ? ` · ${day.count} sessions` : ""}`
+                          : "—"}
                       </TableCell>
                       <TableCell className="text-sm font-medium tabular-nums">
-                        {load != null ? load : <span className="text-muted-foreground">—</span>}
+                        {day.count > 0 ? day.totalLoad : <span className="text-muted-foreground">—</span>}
                       </TableCell>
                       <TableCell>
                         {c.mood != null ? (
