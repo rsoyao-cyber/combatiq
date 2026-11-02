@@ -1,110 +1,139 @@
-import { supabaseAdmin } from "@/lib/supabase-admin";
-import { getRagStatus } from "@/lib/analytics";
-import { AthleteGrid, type AthleteCardData } from "./AthleteGrid";
+import Link from "next/link";
+import { getSquadOverview, type AttentionReason, type SquadAthlete } from "@/lib/squad";
+import { KpiCard } from "@/components/dashboard/KpiCard";
+import { SquadTable, type SquadFilter } from "./SquadTable";
+import { checkinLabel } from "@/lib/format";
 import { AddAthleteButton } from "./AddAthleteButton";
+import { cn } from "@/lib/utils";
 
 export const revalidate = 60; // revalidate every 60s
 
-export default async function DashboardPage() {
-  // Fetch all athletes
-  const { data: athletes, error } = await supabaseAdmin
-    .from("athlete")
-    .select("id, name, sport, weight_class")
-    .order("name");
+const REASON_CHIP: Record<AttentionReason["kind"], string> = {
+  low_wellbeing: "bg-status-attention-bg text-status-attention",
+  ongoing_pain: "bg-status-attention-bg text-status-attention",
+  no_checkins: "bg-status-monitor-bg text-status-monitor",
+};
 
-  if (error) throw new Error(error.message);
-  if (!athletes?.length) {
-    return (
-      <div className="max-w-6xl mx-auto px-4 py-10">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-2xl font-bold text-foreground">Squad</h1>
-          <AddAthleteButton />
-        </div>
-        <p className="text-muted-foreground">No athletes yet. Add one or import a PDF to get started.</p>
+function AttentionCard({ athlete }: { athlete: SquadAthlete }) {
+  const [top, ...others] = [...athlete.reasons].sort((a, b) => b.severity - a.severity);
+  return (
+    <div className="rounded-2xl border border-border bg-card p-4 flex flex-col gap-2.5">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className={cn("whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold", REASON_CHIP[top.kind])}>{top.label}</span>
+        {others.map((r) => (
+          <span key={r.kind} className={cn("whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold", REASON_CHIP[r.kind])}>{r.label}</span>
+        ))}
       </div>
-    );
-  }
-
-  // Fetch RAG status, last check-in, and active injury for each athlete in parallel
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-  const cutoff = sevenDaysAgo.toISOString().split("T")[0];
-
-  const enriched = await Promise.all(
-    athletes.map(async (athlete): Promise<AthleteCardData> => {
-      const [ragResult, lastCheckinResult, injuryResult] = await Promise.all([
-        getRagStatus(athlete.id),
-
-        supabaseAdmin
-          .from("daily_check_in")
-          .select("checkin_date")
-          .eq("athlete_id", athlete.id)
-          .order("checkin_date", { ascending: false })
-          .limit(1)
-          .single(),
-
-        supabaseAdmin
-          .from("daily_check_in")
-          .select("injury_area, injury_pain_rating")
-          .eq("athlete_id", athlete.id)
-          .gte("checkin_date", cutoff)
-          .not("injury_area", "is", null)
-          .gt("injury_pain_rating", 0)
-          .order("checkin_date", { ascending: false })
-          .limit(1)
-          .single(),
-      ]);
-
-      return {
-        id: athlete.id,
-        name: athlete.name,
-        sport: athlete.sport,
-        weight_class: athlete.weight_class,
-        lastCheckinDate: lastCheckinResult.data?.checkin_date ?? null,
-        ragStatus: ragResult.status,
-        hasActiveInjury: !!injuryResult.data,
-        injuryArea: injuryResult.data?.injury_area ?? null,
-      };
-    }),
+      <span className="text-[15px] font-semibold text-foreground">{athlete.name}</span>
+      <p className="text-[13px] leading-relaxed text-muted-foreground">
+        {[top, ...others].map((r) => r.detail).join(" ")}
+        {top.kind !== "no_checkins" && ` Last check-in: ${checkinLabel(athlete.daysSinceCheckin).toLowerCase()}.`}
+      </p>
+      <Link href={`/dashboard/athlete/${athlete.id}`} className="mt-auto text-[13px] font-semibold text-primary hover:underline underline-offset-4">
+        Open athlete →
+      </Link>
+    </div>
   );
+}
 
-  const redCount   = enriched.filter((a) => a.ragStatus === "red").length;
-  const amberCount = enriched.filter((a) => a.ragStatus === "amber").length;
-  const injuryCount = enriched.filter((a) => a.hasActiveInjury).length;
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ filter?: string }>;
+}) {
+  const { filter } = await searchParams;
+  const { today, athletes, kpis } = await getSquadOverview();
+
+  const dateLabel = new Date(`${today}T12:00:00Z`).toLocaleDateString("en-GB", {
+    weekday: "long", day: "numeric", month: "long", timeZone: "UTC",
+  });
+
+  const attention = athletes
+    .filter((a) => a.reasons.length > 0)
+    .sort((a, b) =>
+      Math.max(...b.reasons.map((r) => r.severity)) - Math.max(...a.reasons.map((r) => r.severity)) ||
+      (a.daysSinceCheckin ?? Infinity) - (b.daysSinceCheckin ?? Infinity),
+    );
+  const shown = attention.slice(0, 6);
+
+  const initialFilter: SquadFilter =
+    filter === "attention" || filter === "not_today" ? filter : "all";
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-10">
-      {/* Page header */}
-      <div className="flex items-end justify-between mb-8 gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Squad</h1>
-          <p className="text-muted-foreground text-sm mt-1">{athletes.length} athletes</p>
+    <div className="max-w-7xl mx-auto px-4 sm:px-8 py-7 flex flex-col gap-6">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="flex flex-col gap-1">
+          <p className="text-[13px] font-medium text-muted-foreground">{dateLabel}</p>
+          <h1 className="font-display text-[40px] leading-none font-bold uppercase text-foreground">Squad today</h1>
         </div>
         <AddAthleteButton />
-
-        {/* Summary pills */}
-        <div className="flex gap-2 flex-wrap">
-          {redCount > 0 && (
-            <span className="inline-flex items-center gap-1.5 bg-red-50 text-red-700 border border-red-200 rounded-full px-3 py-1 text-sm font-semibold">
-              <span className="w-2 h-2 rounded-full bg-red-500" />
-              {redCount} red
-            </span>
-          )}
-          {amberCount > 0 && (
-            <span className="inline-flex items-center gap-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-full px-3 py-1 text-sm font-semibold">
-              <span className="w-2 h-2 rounded-full bg-amber-400" />
-              {amberCount} amber
-            </span>
-          )}
-          {injuryCount > 0 && (
-            <span className="inline-flex items-center gap-1.5 bg-red-50 text-red-700 border border-red-200 rounded-full px-3 py-1 text-sm font-semibold">
-              ⚠ {injuryCount} injured
-            </span>
-          )}
-        </div>
       </div>
 
-      <AthleteGrid athletes={enriched} />
+      {athletes.length === 0 ? (
+        <div className="rounded-2xl border border-border bg-card px-6 py-16 text-center">
+          <p className="text-lg font-semibold text-foreground">No athletes yet</p>
+          <p className="text-sm text-muted-foreground mt-1">Add an athlete or import a Trainerize PDF to get started.</p>
+        </div>
+      ) : (
+        <>
+          {/* KPI strip */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <KpiCard label="Checked in today" value={kpis.checkedInToday} unit={`/ ${kpis.total}`}>
+              <div className="h-1.5 rounded-full bg-muted" aria-hidden="true">
+                <div className="h-1.5 rounded-full bg-primary" style={{ width: `${(kpis.checkedInToday / kpis.total) * 100}%` }} />
+              </div>
+            </KpiCard>
+            <KpiCard
+              label="Need attention"
+              value={kpis.attentionCount}
+              valueClassName={kpis.attentionCount > 0 ? "text-status-attention" : undefined}
+              note={kpis.attentionSummary || "Nothing flagged"}
+            />
+            <KpiCard
+              label="Ongoing pain"
+              value={kpis.painCount}
+              note={kpis.longestPain ? `Longest: ${kpis.longestPain.area}, ${kpis.longestPain.days} days (${kpis.longestPain.name})` : "No pain reported this week"}
+            />
+            <KpiCard
+              label="Squad wellbeing · 7 days"
+              value={kpis.squadWellbeing7d != null ? kpis.squadWellbeing7d.toFixed(1) : "—"}
+              unit={kpis.squadWellbeing7d != null ? "/ 5" : undefined}
+              note={
+                kpis.squadWellbeingDelta != null
+                  ? `${kpis.squadWellbeingDelta >= 0 ? "↑" : "↓"} ${Math.abs(kpis.squadWellbeingDelta).toFixed(1)} vs previous 7 days`
+                  : "No check-ins this week"
+              }
+              noteClassName={
+                kpis.squadWellbeingDelta == null ? undefined
+                : kpis.squadWellbeingDelta >= 0 ? "text-status-ready font-semibold" : "text-status-attention font-semibold"
+              }
+            />
+          </div>
+
+          {/* Needs attention */}
+          <section aria-labelledby="attention-heading" className="flex flex-col gap-3">
+            <div className="flex items-baseline justify-between gap-3">
+              <h2 id="attention-heading" className="text-[15px] font-bold text-foreground">Needs attention</h2>
+              {attention.length > shown.length && (
+                <Link href="/dashboard?filter=attention#athletes" className="text-[13px] font-semibold text-primary hover:underline underline-offset-4">
+                  +{attention.length - shown.length} more in the table
+                </Link>
+              )}
+            </div>
+            {shown.length === 0 ? (
+              <div className="rounded-2xl border border-border bg-card px-4 py-5 text-sm text-muted-foreground">
+                Nothing flagged — everyone has checked in recently, wellbeing is steady and no ongoing pain.
+              </div>
+            ) : (
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">
+                {shown.map((a) => <AttentionCard key={a.id} athlete={a} />)}
+              </div>
+            )}
+          </section>
+
+          <SquadTable key={initialFilter} athletes={athletes} initialFilter={initialFilter} />
+        </>
+      )}
     </div>
   );
 }

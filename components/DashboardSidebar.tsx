@@ -2,58 +2,50 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import {
-  Activity,
-  LayoutDashboard,
-  FileUp,
-  Settings,
-  HelpCircle,
-  Search,
-  LogOut,
-} from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { Activity, FileUp, LayoutDashboard, LogOut } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 
-// ─── Nav items ───────────────────────────────────────────────────────────────
-
-const GENERAL_NAV = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+export const DASHBOARD_NAV = [
+  { href: "/dashboard", label: "Squad today", icon: LayoutDashboard },
+  { href: "/dashboard/import", label: "Import Trainerize PDF", icon: FileUp },
 ];
 
-const MANAGEMENT_NAV = [
-  { href: "/dashboard/import", label: "Import PDF", icon: FileUp },
-];
+export function isNavActive(href: string, pathname: string): boolean {
+  if (href === "/dashboard") return pathname === "/dashboard" || pathname.startsWith("/dashboard/athlete");
+  return pathname.startsWith(href);
+}
 
-function NavLink({
-  href,
-  label,
-  icon: Icon,
-  exact = false,
-}: {
-  href: string;
-  label: string;
-  icon: React.ElementType;
-  exact?: boolean;
-}) {
+export function DashboardLockup() {
+  return (
+    <div className="flex items-center gap-2.5">
+      <div className="size-8 rounded-[10px] bg-sidebar-primary flex items-center justify-center flex-shrink-0">
+        <Activity className="size-[18px] text-sidebar-primary-foreground" aria-hidden="true" />
+      </div>
+      <div className="flex flex-col leading-none gap-0.5">
+        <span className="font-display text-[19px] font-bold uppercase tracking-wide text-sidebar-foreground">CombatIQ</span>
+        <span className="text-[11px] text-sidebar-foreground/60">by TFP Clinic</span>
+      </div>
+    </div>
+  );
+}
+
+function NavLink({ href, label, icon: Icon }: (typeof DASHBOARD_NAV)[number]) {
   const pathname = usePathname();
-  const isActive = exact
-    ? pathname === href
-    : pathname === href ||
-      (href === "/dashboard" && pathname.startsWith("/dashboard/athlete")) ||
-      (href !== "/dashboard" && pathname.startsWith(href));
+  const active = isNavActive(href, pathname);
 
   return (
     <Link
       href={href}
+      aria-current={active ? "page" : undefined}
       className={cn(
-        "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-        isActive
-          ? "bg-primary/10 text-primary"
-          : "text-muted-foreground hover:text-foreground hover:bg-muted",
+        "flex items-center gap-2.5 h-[38px] px-2.5 rounded-[10px] text-sm transition-colors outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",
+        active
+          ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold"
+          : "text-sidebar-foreground/80 font-medium hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
       )}
     >
-      <Icon className="w-4 h-4 flex-shrink-0" />
+      <Icon className="size-4 flex-shrink-0" aria-hidden="true" />
       {label}
     </Link>
   );
@@ -72,88 +64,69 @@ export function DashboardSidebar({ email }: { email?: string }) {
   }
 
   return (
-    <aside className="hidden lg:flex flex-col fixed left-0 top-0 h-full w-64 bg-card border-r border-border z-30 overflow-y-auto">
-      {/* Logo */}
-      <div className="px-4 py-5 border-b border-border flex-shrink-0">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
-            <Activity className="w-4 h-4 text-primary-foreground" />
-          </div>
-          <span className="font-bold text-foreground text-base">CombatIQ</span>
-        </div>
+    <aside className="hidden lg:flex flex-col fixed left-0 top-0 h-full w-60 bg-sidebar text-sidebar-foreground z-30 overflow-y-auto px-3.5 py-5 gap-6">
+      <div className="px-1.5">
+        <DashboardLockup />
       </div>
 
-      {/* Search */}
-      <div className="px-3 pt-4 pb-2 flex-shrink-0">
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-          <Input
-            placeholder="Quick search…"
-            className="pl-8 h-8 text-sm bg-muted border-transparent focus-visible:ring-1"
-            readOnly
-          />
-        </div>
-      </div>
-
-      {/* Navigation */}
-      <nav className="flex-1 px-3 py-2 flex flex-col gap-5">
-        <div>
-          <p className="px-3 mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            General
-          </p>
-          <div className="flex flex-col gap-0.5">
-            {GENERAL_NAV.map((item) => (
-              <NavLink key={item.href} {...item} />
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <p className="px-3 mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Program Management
-          </p>
-          <div className="flex flex-col gap-0.5">
-            {MANAGEMENT_NAV.map((item) => (
-              <NavLink key={item.href} {...item} />
-            ))}
-          </div>
-        </div>
+      <nav aria-label="Main" className="flex flex-col gap-0.5">
+        {DASHBOARD_NAV.map((item) => (
+          <NavLink key={item.href} {...item} />
+        ))}
       </nav>
 
-      {/* Bottom */}
-      <div className="border-t border-border px-3 pt-3 pb-4 flex-shrink-0 flex flex-col gap-0.5">
-        <Link
-          href="/settings"
-          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-        >
-          <Settings className="w-4 h-4 flex-shrink-0" />
-          Settings
-        </Link>
-        <Link
-          href="#"
-          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-        >
-          <HelpCircle className="w-4 h-4 flex-shrink-0" />
-          Help Center
-        </Link>
-
-        {/* User + sign out */}
-        <div className="mt-3 pt-3 border-t border-border flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary flex-shrink-0">
-            {initials}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs text-foreground font-medium truncate">{email ?? "Account"}</p>
-          </div>
-          <button
-            onClick={handleSignOut}
-            className="text-muted-foreground hover:text-foreground transition-colors"
-            title="Sign out"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
+      <div className="mt-auto pt-3 border-t border-sidebar-border flex items-center gap-2.5 px-1.5">
+        <div className="size-8 rounded-full bg-sidebar-accent flex items-center justify-center text-xs font-semibold flex-shrink-0">
+          {initials}
         </div>
+        <div className="flex-1 min-w-0 leading-tight">
+          <p className="text-[13px] font-semibold truncate">{email ?? "Account"}</p>
+          <p className="text-xs text-sidebar-foreground/60">Practitioner</p>
+        </div>
+        <button
+          type="button"
+          onClick={handleSignOut}
+          aria-label="Sign out"
+          title="Sign out"
+          className="size-9 rounded-lg flex items-center justify-center text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+        >
+          <LogOut className="size-4" />
+        </button>
       </div>
     </aside>
+  );
+}
+
+// ─── Mobile top bar ──────────────────────────────────────────────────────────
+
+export function DashboardMobileBar({ children }: { children?: React.ReactNode }) {
+  const pathname = usePathname();
+  return (
+    <div className="lg:hidden fixed top-0 inset-x-0 z-20 bg-sidebar text-sidebar-foreground">
+      <div className="h-14 px-4 flex items-center justify-between gap-3">
+        <DashboardLockup />
+        <div className="flex items-center gap-1">
+          <nav aria-label="Main" className="flex items-center gap-1">
+            {DASHBOARD_NAV.map(({ href, label }) => (
+              <Link
+                key={href}
+                href={href}
+                aria-current={isNavActive(href, pathname) ? "page" : undefined}
+                className={cn(
+                  "px-2.5 py-1.5 rounded-lg text-[13px] font-medium transition-colors",
+                  isNavActive(href, pathname)
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                    : "text-sidebar-foreground/80 hover:text-sidebar-foreground",
+                )}
+              >
+                {href === "/dashboard" ? "Squad" : "Import"}
+                <span className="sr-only"> — {label}</span>
+              </Link>
+            ))}
+          </nav>
+          {children}
+        </div>
+      </div>
+    </div>
   );
 }

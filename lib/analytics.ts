@@ -2,7 +2,7 @@ import { supabaseAdmin } from "./supabase-admin";
 
 // ─── domain list ────────────────────────────────────────────────────────────
 
-const WELLBEING_DOMAINS = [
+export const WELLBEING_DOMAINS = [
   "sleep_quality",
   "physical_fatigue",
   "mental_focus",
@@ -81,7 +81,7 @@ export type InjuryFlag = {
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
-function nullableAvg(values: (number | null)[]): number | null {
+export function nullableAvg(values: (number | null)[]): number | null {
   const clean = values.filter((v): v is number => v != null);
   if (clean.length === 0) return null;
   return clean.reduce((a, b) => a + b, 0) / clean.length;
@@ -100,7 +100,7 @@ function trendDirection(last7: number, prior7: number): TrendDirection {
   return "flat";
 }
 
-function domainRag(average: number): RagStatus {
+export function domainRag(average: number): RagStatus {
   if (average < 3) return "red";
   if (average < 4) return "amber";
   return "green";
