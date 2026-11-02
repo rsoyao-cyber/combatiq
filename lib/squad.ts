@@ -12,11 +12,7 @@ export type AttentionReason = {
   severity: number; // higher = more urgent; used to order the attention cards
 };
 
-export type SquadAthlete = {
-  id: string;
-  name: string;
-  sport: string;
-  weightClass: string;
+export type AthleteSnapshot = {
   status: SquadStatus;
   lastCheckinDate: string | null;
   daysSinceCheckin: number | null;
@@ -28,7 +24,15 @@ export type SquadAthlete = {
   weightChangePct: number | null;     // vs the last weigh-in ≥7 days earlier
   pain: { area: string; days: number; rating: number } | null;
   reasons: AttentionReason[];
+  wellbeingPrev7d: number | null;     // the 7 days before, for the trend
 };
+
+export type SquadAthlete = {
+  id: string;
+  name: string;
+  sport: string;
+  weightClass: string;
+} & AthleteSnapshot;
 
 export type SquadOverview = {
   today: string;
@@ -45,7 +49,7 @@ export type SquadOverview = {
   };
 };
 
-type CheckInRow = {
+export type CheckInRow = {
   athlete_id: string;
   checkin_date: string;
   weight_kg: number | null;
@@ -217,6 +221,46 @@ export function attentionReasons(a: {
   return reasons;
 }
 
+// ─── One athlete ─────────────────────────────────────────────────────────────
+
+/**
+ * Status, KPIs and attention reasons for one athlete. `rows` and `sessions`
+ * should cover at least the last 35 days. Used by the Squad page and the
+ * athlete page so both always agree.
+ */
+export function athleteSnapshot(
+  rows: CheckInRow[],
+  sessions: { session_date: string; load_au: number }[],
+  today: string,
+  lastCheckinDate: string | null,
+): AthleteSnapshot {
+  const last7 = shiftDay(today, -7);
+  const prior7 = shiftDay(today, -14);
+  const recent = rows.filter((r) => r.checkin_date >= last7);
+  const before = rows.filter((r) => r.checkin_date >= prior7 && r.checkin_date < last7);
+  const daysSinceCheckin = lastCheckinDate ? daysBetween(lastCheckinDate, today) : null;
+  const { status, worst } = wellbeingStatus(recent);
+  const wellbeing7d = nullableAvg(recent.map(rowWellbeing));
+  const pain = ongoingPain(rows, today);
+  const { weekLoad, avgWeekLoad } = weekLoadVsAverage(sessions, today);
+  const { weight, pct } = weightChange(rows, today);
+
+  return {
+    status,
+    lastCheckinDate,
+    daysSinceCheckin,
+    wellbeing7d,
+    wellbeingPrev7d: nullableAvg(before.map(rowWellbeing)),
+    wellbeingSeries: dailyWellbeing(rows, today, 14),
+    weekLoad,
+    avgWeekLoad,
+    weight,
+    weightChangePct: pct,
+    pain,
+    reasons: attentionReasons({ daysSinceCheckin, status, wellbeing7d, worst, pain }),
+  };
+}
+
 // ─── Loader ──────────────────────────────────────────────────────────────────
 
 export async function getSquadOverview(): Promise<SquadOverview> {
@@ -262,32 +306,14 @@ export async function getSquadOverview(): Promise<SquadOverview> {
 
   const squad: SquadAthlete[] = athletes.map((athlete) => {
     const rows = checkIns.filter((c) => c.athlete_id === athlete.id);
-    const recent = rows.filter((r) => r.checkin_date >= last7);
     const lastCheckinDate = rows.at(-1)?.checkin_date ?? lastOlder.get(athlete.id) ?? null;
-    const daysSinceCheckin = lastCheckinDate ? daysBetween(lastCheckinDate, today) : null;
-    const { status, worst } = wellbeingStatus(recent);
-    const wellbeing7d = nullableAvg(recent.map(rowWellbeing));
-    const pain = ongoingPain(rows, today);
-    const { weekLoad, avgWeekLoad } = weekLoadVsAverage(sessions.filter((s) => s.athlete_id === athlete.id), today);
-    const { weight, pct } = weightChange(rows, today);
-
-    return {
-      id: athlete.id,
-      name: athlete.name,
-      sport: athlete.sport,
-      weightClass: athlete.weight_class,
-      status,
+    const snapshot = athleteSnapshot(
+      rows,
+      sessions.filter((s) => s.athlete_id === athlete.id),
+      today,
       lastCheckinDate,
-      daysSinceCheckin,
-      wellbeing7d,
-      wellbeingSeries: dailyWellbeing(rows, today, 14),
-      weekLoad,
-      avgWeekLoad,
-      weight,
-      weightChangePct: pct,
-      pain,
-      reasons: attentionReasons({ daysSinceCheckin, status, wellbeing7d, worst, pain }),
-    };
+    );
+    return { id: athlete.id, name: athlete.name, sport: athlete.sport, weightClass: athlete.weight_class, ...snapshot };
   });
 
   // ── KPIs ──

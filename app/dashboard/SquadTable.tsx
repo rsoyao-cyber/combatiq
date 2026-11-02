@@ -2,40 +2,19 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Check, Link as LinkIcon, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { checkinLabel, initials } from "@/lib/format";
 import type { SquadAthlete } from "@/lib/squad";
 import { StatusPill, STATUS_ORDER } from "@/components/dashboard/StatusPill";
 import { Sparkline } from "@/components/dashboard/Sparkline";
 import { LoadVsAverage } from "@/components/dashboard/LoadVsAverage";
+import { CopyCheckinLink } from "@/components/dashboard/CopyCheckinLink";
 
 export type SquadFilter = "all" | "attention" | "not_today";
 type SortMode = "attention" | "checkin";
 
 const maxSeverity = (a: SquadAthlete) => Math.max(0, ...a.reasons.map((r) => r.severity));
-
-function CopyLinkButton({ athleteId, name }: { athleteId: string; name: string }) {
-  const [copied, setCopied] = useState(false);
-
-  async function handleCopy() {
-    await navigator.clipboard.writeText(`${window.location.origin}/checkin/${athleteId}`);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={handleCopy}
-      aria-label={copied ? `Check-in link for ${name} copied` : `Copy check-in link for ${name}`}
-      title={copied ? "Copied" : "Copy check-in link"}
-      className="size-9 rounded-[10px] border border-border bg-card inline-flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring"
-    >
-      {copied ? <Check className="size-4 text-status-ready" /> : <LinkIcon className="size-4" />}
-    </button>
-  );
-}
 
 export function SquadTable({
   athletes,
@@ -189,7 +168,7 @@ export function SquadTable({
                       <span className="text-muted-foreground">—</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-right"><CopyLinkButton athleteId={a.id} name={a.name} /></td>
+                  <td className="px-4 py-3 text-right"><CopyCheckinLink athleteId={a.id} name={a.name} /></td>
                 </tr>
               ))}
             </tbody>

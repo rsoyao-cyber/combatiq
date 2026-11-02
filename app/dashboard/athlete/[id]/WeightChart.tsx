@@ -51,14 +51,14 @@ export function WeightChart({
   const maxVal = Math.ceil(Math.max(...allValues) + 1);
 
   return (
-    <div className="bg-card rounded-xl border border-border p-4">
+    <div>
       <div className="flex items-center gap-4 mb-4">
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <span className="inline-block w-5 h-0.5 bg-primary rounded" />
           Actual
         </div>
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <span className="inline-block w-5 h-0.5 border-t-2 border-dashed border-emerald-500 rounded" />
+          <span className="inline-block w-5 h-0.5 border-t-2 border-dashed border-status-ready rounded" />
           Target (−1%/week)
         </div>
       </div>
@@ -104,7 +104,7 @@ export function WeightChart({
           <Line
             type="monotone"
             dataKey="target"
-            stroke="#10b981"
+            stroke="var(--status-ready)"
             strokeWidth={1.5}
             strokeDasharray="5 3"
             dot={false}

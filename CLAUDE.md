@@ -193,15 +193,19 @@ Report generation includes training_week_schedule stats in the stats JSON passed
 the Claude prompt (slot counts, adherence, consecutive high-day flags across last 5 weeks).
 Model must not fabricate sessions; if alternative is missing, must say so.
 
-## Athlete dashboard section order
-1. Page header (name, sport, RAG badge, Monthly Report + Pre-Fight Report buttons, Import PDF button)
-2. Stat strip — current weight, last session load, last session RPE, weeks in program
-3. Monthly goal editor
-4. Two-column grid (left: weight chart, training load chart, menstrual cycle*, wellbeing trends, training performance, injury log | right: sticky weekly schedule panel)
-5. Recent activity — last 7 check-ins
-6. Session history — last 40 sessions
-7. Reports — Data Completeness card + Report History table
-(* female athletes only)
+## Athlete dashboard (app/dashboard/athlete/[id])
+Header (breadcrumb, name, status pill, last check-in, programme week; actions: copy check-in link,
+edit, import PDF, generate report) + link-based tabs (?tab=…, server renders only the active tab):
+1. Overview (OverviewTab.tsx) — attention banner, 4 KPI cards (wellbeing, load vs 4-week avg,
+   weight, last session), monthly goal, 8-week load chart, this week plan vs actual,
+   wellbeing mini-cards, recent sessions
+2. Training (TrainingTab.tsx) — load chart, editable WeekSchedulePanel, recent activity,
+   strength/power progressions, Trainerize sessions
+3. Wellbeing (WellbeingTab.tsx) — domain charts, pain & injury, menstrual cycle (female only)
+4. Body & weight (BodyTab.tsx) — weight KPIs + WeightChart
+5. Reports — ReportPanel
+Status, KPIs and attention reasons come from athleteSnapshot() in lib/squad.ts — the same
+function the Squad page uses, so the two pages always agree. Dates are UTC days everywhere.
 
 ## Weight tracking
 Athletes log body weight (kg) in the daily check-in form (optional field).

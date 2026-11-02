@@ -22,29 +22,29 @@ function PerfChart({
   emptyMsg: string;
 }) {
   return (
-    <div className="bg-white rounded-xl border border-zinc-200 p-5 flex-1 min-w-0">
-      <p className="text-sm font-semibold text-zinc-800 mb-4">{title}</p>
+    <div className="rounded-xl border border-border bg-card p-5 flex-1 min-w-0">
+      <p className="text-sm font-semibold text-foreground mb-4">{title}</p>
       {data.length < 2 ? (
-        <p className="text-sm text-zinc-400 py-8 text-center">{emptyMsg}</p>
+        <p className="text-sm text-muted-foreground py-8 text-center">{emptyMsg}</p>
       ) : (
         <ResponsiveContainer width="100%" height={180}>
           <LineChart data={data} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
-            <CartesianGrid stroke="#f4f4f5" vertical={false} />
+            <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
             <XAxis
               dataKey="date"
-              tick={{ fontSize: 10, fill: "#a1a1aa" }}
+              tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
               tickLine={false}
               axisLine={false}
               interval="preserveStartEnd"
             />
             <YAxis
-              tick={{ fontSize: 10, fill: "#a1a1aa" }}
+              tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
               tickLine={false}
               axisLine={false}
               tickFormatter={(v) => `${v}${unit}`}
             />
             <Tooltip
-              contentStyle={{ fontSize: 11, borderRadius: 6, border: "1px solid #e4e4e7" }}
+              contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid var(--border)", background: "var(--card)", color: "var(--foreground)" }}
               formatter={(v) => [`${v}${unit}`, title]}
             />
             <Line
@@ -69,7 +69,7 @@ export function PerformanceCharts({
 }) {
   if (progressions.length === 0) {
     return (
-      <p className="text-sm text-zinc-400">No exercise progression data yet.</p>
+      <p className="text-sm text-muted-foreground">No exercise progression data yet. Import a Trainerize PDF to see strength and power trends.</p>
     );
   }
 
@@ -80,7 +80,7 @@ export function PerformanceCharts({
           date: point.sessionDate.slice(5),
           value: point.value,
         }));
-        const color = progression.metricType === "power" ? "#f59e0b" : "#6366f1";
+        const color = progression.metricType === "power" ? "var(--chart-3)" : "var(--chart-1)";
         const metricLabel = progression.metricType === "power" ? "power" : "strength";
         return (
           <PerfChart

@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { FileUp } from "lucide-react";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import {
+  WELLBEING_DOMAINS,
   getWellbeingTrends,
   getExerciseProgressions,
   getInjuryFlags,
@@ -9,153 +11,56 @@ import {
   getSessionLoads,
 } from "@/lib/analytics";
 import { getMondayOfWeek } from "@/lib/training-week-types";
-import { rpeBand, summariseDay } from "@/lib/load";
 import type { TrainingWeekSnapshot } from "@/lib/training-week-types";
-import { GoalEditor } from "./GoalEditor";
-import { EditAthleteModal } from "./EditAthleteModal";
-import { WellbeingCharts } from "./WellbeingCharts";
-import { PerformanceCharts } from "./PerformanceCharts";
-import { ReportPanel } from "./ReportPanel";
-import { ReportGenerateButtons } from "./ReportGenerateButtons";
-import { WeekSchedulePanel } from "./WeekSchedulePanel";
-import { WeightChart } from "./WeightChart";
-import { SessionLoadChart } from "./SessionLoadChart";
-import { CyclePhasePanel } from "./CyclePhasePanel";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { buttonVariants } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { athleteSnapshot, type CheckInRow } from "@/lib/squad";
+import { checkinLabel, initials } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, ArrowRight, FileUp } from "lucide-react";
+import { buttonVariants } from "@/components/ui/button";
+import { StatusPill } from "@/components/dashboard/StatusPill";
+import { Tabs } from "@/components/dashboard/Tabs";
+import { CopyCheckinLink } from "@/components/dashboard/CopyCheckinLink";
+import { Panel } from "@/components/dashboard/Panel";
+import { EditAthleteModal } from "./EditAthleteModal";
+import { ReportGenerateButtons } from "./ReportGenerateButtons";
+import { ReportPanel } from "./ReportPanel";
+import { OverviewTab, type LoggedSession } from "./OverviewTab";
+import { TrainingTab, type TrainerizeSession } from "./TrainingTab";
+import { WellbeingTab } from "./WellbeingTab";
+import { BodyTab } from "./BodyTab";
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+const TABS = [
+  { key: "overview", label: "Overview" },
+  { key: "training", label: "Training" },
+  { key: "wellbeing", label: "Wellbeing" },
+  { key: "body", label: "Body & weight" },
+  { key: "reports", label: "Reports" },
+] as const;
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-      {children}
-    </h2>
-  );
+type TabKey = (typeof TABS)[number]["key"];
+
+function isoDaysAgo(today: string, days: number): string {
+  const d = new Date(`${today}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - days);
+  return d.toISOString().slice(0, 10);
 }
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section>
-      <SectionLabel>{title}</SectionLabel>
-      {children}
-    </section>
-  );
-}
-
-// ─── Stat card ────────────────────────────────────────────────────────────────
-
-function StatCard({
-  title,
-  value,
-  unit,
-  trend,
-  trendUp,
-  badge,
-  badgeClassName,
-}: {
-  title: string;
-  value: string | number | null;
-  unit?: string;
-  trend?: string | null;
-  trendUp?: boolean;
-  badge?: string;
-  badgeClassName?: string;
-}) {
-
-  return (
-    <Card className="shadow-sm">
-      <CardContent className="p-6">
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground leading-tight">
-            {title}
-          </p>
-          <ArrowRight className="w-3.5 h-3.5 text-muted-foreground/40 flex-shrink-0 mt-0.5" />
-        </div>
-        <div className="flex items-end gap-2 mt-1">
-          <p className="text-3xl font-bold text-foreground tabular-nums leading-none">
-            {value ?? <span className="text-xl text-muted-foreground">—</span>}
-          </p>
-          {unit && value != null && (
-            <span className="text-sm text-muted-foreground mb-0.5">{unit}</span>
-          )}
-        </div>
-        {(trend || badge) && (
-          <div className="mt-3 flex items-center gap-2">
-            {trend && (
-              <span
-                className={cn(
-                  "inline-flex items-center gap-0.5 text-xs font-semibold px-2 py-0.5 rounded-full",
-                  trendUp
-                    ? "bg-emerald-100 text-emerald-700"
-                    : "bg-red-100 text-red-700",
-                )}
-              >
-                {trendUp ? "↑" : "↓"} {trend}
-              </span>
-            )}
-            {badge && badgeClassName && (
-              <span
-                className={cn(
-                  "inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full",
-                  badgeClassName,
-                )}
-              >
-                {badge}
-              </span>
-            )}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-// ─── RAG badge maps ──────────────────────────────────────────────────────────
-
-const RAG_BADGE: Record<string, string> = {
-  red:   "bg-red-50   text-red-700   border-red-200",
-  amber: "bg-amber-50 text-amber-700 border-amber-200",
-  green: "bg-emerald-50 text-emerald-700 border-emerald-200",
-};
-const RAG_DOT: Record<string, string> = {
-  red:   "bg-red-500",
-  amber: "bg-amber-400",
-  green: "bg-emerald-500",
-};
-
-// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default async function AthletePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ tab?: string }>;
 }) {
   const { id } = await params;
+  const { tab: rawTab } = await searchParams;
+  const tab: TabKey = TABS.some((t) => t.key === rawTab) ? (rawTab as TabKey) : "overview";
 
-  const monthYear        = new Date().toISOString().slice(0, 7);
+  const today = new Date().toISOString().slice(0, 10);
+  const monthYear = today.slice(0, 7);
   const currentWeekStart = getMondayOfWeek(new Date());
-
-  const twentyEightDaysAgo = new Date();
-  twentyEightDaysAgo.setDate(twentyEightDaysAgo.getDate() - 28);
-  const cutoff28 = twentyEightDaysAgo.toISOString().split("T")[0];
-
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-  const cutoff30 = thirtyDaysAgo.toISOString().split("T")[0];
-
-  // Last 4 Mondays (including current week)
+  const cutoff35 = isoDaysAgo(today, 35);
+  const cutoff28 = isoDaysAgo(today, 28);
+  const cutoff30 = isoDaysAgo(today, 30);
   const last4Mondays = Array.from({ length: 4 }, (_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - i * 7);
@@ -166,14 +71,15 @@ export default async function AthletePage({
     athleteResult,
     goalResult,
     checkInsResult,
-    checkInSessionsResult,
-    trendsResult,
-    exerciseProgressionsResult,
-    injuryResult,
-    sessionsResult,
+    loggedSessionsResult,
+    lastCheckinResult,
+    trends,
+    progressions,
+    injuries,
+    trainerizeResult,
     weekSnapshotResult,
-    weightTrendsResult,
-    sessionLoadsResult,
+    weightTrends,
+    sessionLoads,
     lastCycleResult,
     latestProgramResult,
     checkInCount30dResult,
@@ -185,52 +91,44 @@ export default async function AthletePage({
       .select("id, name, sex, sport, weight_class, competition_level, training_age_years, clinic_name")
       .eq("id", id)
       .single(),
-
-    supabaseAdmin
-      .from("monthly_goal")
-      .select("goal_text")
-      .eq("athlete_id", id)
-      .eq("month_year", monthYear)
-      .single(),
-
+    supabaseAdmin.from("monthly_goal").select("goal_text").eq("athlete_id", id).eq("month_year", monthYear).maybeSingle(),
     supabaseAdmin
       .from("daily_check_in")
-      .select(
-        "checkin_date, sleep_quality, physical_fatigue, mental_focus, motivation, mood, stress, diet_quality",
-      )
+      .select(`athlete_id, checkin_date, weight_kg, injury_area, injury_pain_rating, ${WELLBEING_DOMAINS.join(", ")}`)
       .eq("athlete_id", id)
-      .gte("checkin_date", cutoff28)
+      .gte("checkin_date", cutoff35)
       .order("checkin_date", { ascending: true }),
-
     supabaseAdmin
       .from("check_in_session")
-      .select("session_date, position, session_types, duration_mins, rpe, load_au")
+      .select("session_date, position, session_types, duration_mins, rpe, load_au, sparring_rounds")
       .eq("athlete_id", id)
-      .gte("session_date", cutoff28)
+      .gte("session_date", cutoff35)
       .order("session_date", { ascending: true })
       .order("position", { ascending: true }),
-
+    supabaseAdmin
+      .from("daily_check_in")
+      .select("checkin_date")
+      .eq("athlete_id", id)
+      .order("checkin_date", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
     getWellbeingTrends(id, 28),
     getExerciseProgressions(id),
     getInjuryFlags(id),
-
     supabaseAdmin
       .from("training_session")
       .select("id, session_date, session_rpe, completed, workout_template(name)")
       .eq("athlete_id", id)
       .order("session_date", { ascending: false })
       .limit(40),
-
     supabaseAdmin
       .from("training_week_snapshot")
       .select("*")
       .eq("athlete_id", id)
       .eq("week_start_date", currentWeekStart)
       .maybeSingle(),
-
     getWeightTrends(id, 8),
     getSessionLoads(id, 8),
-
     supabaseAdmin
       .from("menstrual_cycle")
       .select("cycle_start_date, cycle_length_days")
@@ -238,7 +136,6 @@ export default async function AthletePage({
       .order("cycle_start_date", { ascending: false })
       .limit(1)
       .maybeSingle(),
-
     supabaseAdmin
       .from("workout_program")
       .select("start_date, name")
@@ -246,22 +143,16 @@ export default async function AthletePage({
       .order("start_date", { ascending: false })
       .limit(1)
       .maybeSingle(),
-
-    // Check-in count — last 30 days
     supabaseAdmin
       .from("daily_check_in")
       .select("*", { count: "exact", head: true })
       .eq("athlete_id", id)
       .gte("checkin_date", cutoff30),
-
-    // Week snapshots — last 4 weeks
     supabaseAdmin
       .from("training_week_snapshot")
       .select("week_start_date", { count: "exact", head: true })
       .eq("athlete_id", id)
       .in("week_start_date", last4Mondays),
-
-    // Report history — last 10
     supabaseAdmin
       .from("report_share")
       .select("id, token, report_type, created_at, expires_at, viewed_at")
@@ -272,388 +163,127 @@ export default async function AthletePage({
 
   if (!athleteResult.data) notFound();
 
-  const athlete    = athleteResult.data;
-  const goal       = goalResult.data?.goal_text ?? "";
-  const checkIns   = checkInsResult.data ?? [];
-  const checkInSessions = checkInSessionsResult.data ?? [];
-  const injuries   = injuryResult;
-  const sessions   = sessionsResult.data ?? [];
+  const athlete = athleteResult.data;
+  const checkIns = (checkInsResult.data ?? []) as unknown as CheckInRow[];
+  const loggedSessions = (loggedSessionsResult.data ?? []) as LoggedSession[];
+  const trainerizeSessions = (trainerizeResult.data ?? []) as TrainerizeSession[];
   const weekSnapshot = (weekSnapshotResult.data ?? null) as TrainingWeekSnapshot | null;
+  const lastCheckinDate = lastCheckinResult.data?.checkin_date ?? null;
 
-  const checkInCount30d    = checkInCount30dResult.count ?? 0;
-  const weekScheduleCount4w = weekSchedule4wResult.count ?? 0;
-  const lastSessionDate    = sessions[0]?.session_date ?? null;
-  const reportHistory      = reportHistoryResult.data ?? [];
-
-  // ── RAG ─────────────────────────────────────────────────────────────────────
-  const domainsWithData = trendsResult.domains.filter((d) => d.last7Avg != null);
-  const avgLast7 =
-    domainsWithData.length > 0
-      ? domainsWithData.reduce((s, d) => s + (d.last7Avg ?? 0), 0) / domainsWithData.length
-      : null;
-  const ragStatus = avgLast7 == null ? null : avgLast7 < 3 ? "red" : avgLast7 < 4 ? "amber" : "green";
-
-  // ── Stat strip ───────────────────────────────────────────────────────────────
-  const latestWeight = weightTrendsResult.actuals.at(-1) ?? null;
-  const sevenDaysAgoStr = (() => {
-    const d = new Date();
-    d.setDate(d.getDate() - 7);
-    return d.toISOString().split("T")[0];
-  })();
-  const weekAgoWeight = [...weightTrendsResult.actuals]
-    .reverse()
-    .find((a) => a.date <= sevenDaysAgoStr) ?? null;
-  const weightChange =
-    latestWeight && weekAgoWeight && weekAgoWeight !== latestWeight
-      ? latestWeight.weight_kg - weekAgoWeight.weight_kg
-      : null;
-
-  const lastSession = checkInSessions.at(-1) ?? null;
-  const lastLoad = lastSession?.load_au ?? null;
-  const lastRpe = lastSession?.rpe ?? null;
-  const lastRpeBand = lastRpe != null ? rpeBand(lastRpe) : null;
+  // Same status, KPIs and flags as the Squad page
+  const snapshot = athleteSnapshot(checkIns, loggedSessions, today, lastCheckinDate);
 
   const programStart = latestProgramResult.data?.start_date ?? null;
-  const weeksInProgram = programStart
-    ? Math.max(1, Math.floor((new Date().getTime() - new Date(programStart).getTime()) / (1000 * 60 * 60 * 24 * 7)))
+  const programme = latestProgramResult.data && programStart
+    ? {
+        name: latestProgramResult.data.name,
+        weeks: Math.max(1, Math.floor((Date.parse(`${today}T00:00:00Z`) - Date.parse(`${programStart}T00:00:00Z`)) / (7 * 86_400_000)) + 1),
+      }
     : null;
 
-  // ── Recent activity (last 7 check-ins, descending) ───────────────────────────
-  const recentActivity = [...checkIns].reverse().slice(0, 7);
-  const sessionsByDate = new Map<string, typeof checkInSessions>();
-  for (const s of checkInSessions) {
-    sessionsByDate.set(s.session_date, [...(sessionsByDate.get(s.session_date) ?? []), s]);
-  }
+  const meta = [athlete.sport, athlete.weight_class, athlete.competition_level].filter(Boolean).join(" · ");
 
   return (
-    <div className="px-4 py-6 max-w-7xl mx-auto flex flex-col gap-6">
+    <div className="max-w-7xl mx-auto px-4 sm:px-8 py-6 flex flex-col gap-5">
+      {/* ── Header ─────────────────────────────────────────────────────────── */}
+      <div className="flex flex-col gap-4">
+        <nav aria-label="Breadcrumb" className="text-[13px] text-muted-foreground">
+          <Link href="/dashboard" className="hover:text-foreground hover:underline underline-offset-4">Squad</Link>
+          <span aria-hidden="true"> / </span>
+          <span className="text-foreground">{athlete.name}</span>
+        </nav>
 
-      {/* ── Page header ──────────────────────────────────────────────────────── */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <Link
-            href="/dashboard"
-            className={cn(
-              buttonVariants({ variant: "ghost", size: "sm" }),
-              "gap-1.5 text-muted-foreground -ml-2 mb-2",
-            )}
-          >
-            <ArrowLeft className="w-3.5 h-3.5" /> Squad
-          </Link>
-          <h1 className="text-2xl font-bold text-foreground">{athlete.name}</h1>
-          <div className="flex flex-wrap items-center gap-1.5 mt-1 text-sm text-muted-foreground">
-            <span>{athlete.sport}</span>
-            {athlete.sex && (
-              <>
-                <span className="text-muted-foreground/40">·</span>
-                <span className="capitalize">{athlete.sex}</span>
-              </>
-            )}
-            {athlete.weight_class && (
-              <>
-                <span className="text-muted-foreground/40">·</span>
-                <span>{athlete.weight_class}</span>
-              </>
-            )}
-            {athlete.competition_level && (
-              <>
-                <span className="text-muted-foreground/40">·</span>
-                <span>{athlete.competition_level}</span>
-              </>
-            )}
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5 min-w-0">
+            <span className="size-14 rounded-full bg-accent text-accent-foreground flex items-center justify-center text-lg font-bold shrink-0" aria-hidden="true">
+              {initials(athlete.name)}
+            </span>
+            <div className="flex flex-col gap-1.5 min-w-0">
+              <h1 className="font-display text-[38px] leading-none font-bold uppercase text-foreground truncate">{athlete.name}</h1>
+              <div className="flex flex-wrap items-center gap-2 text-[13px] text-muted-foreground">
+                {meta && <span>{meta}</span>}
+                <StatusPill status={snapshot.status} />
+                <span>Last check-in: {checkinLabel(snapshot.daysSinceCheckin).toLowerCase()}</span>
+                {programme && <span>· {programme.name}, week {programme.weeks}</span>}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <CopyCheckinLink athleteId={athlete.id} name={athlete.name} withLabel />
+            <EditAthleteModal athlete={athlete} />
+            <Link
+              href={`/dashboard/import?athleteId=${id}&athleteName=${encodeURIComponent(athlete.name)}`}
+              className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-9 rounded-full px-4 gap-1.5")}
+            >
+              <FileUp className="size-3.5" /> Import PDF
+            </Link>
+            <ReportGenerateButtons athleteId={id} />
           </div>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
-          {ragStatus && (
-            <Badge variant="outline" className={`gap-1.5 font-semibold ${RAG_BADGE[ragStatus]}`}>
-              <span className={`w-2 h-2 rounded-full ${RAG_DOT[ragStatus]}`} />
-              {ragStatus.toUpperCase()}
-            </Badge>
-          )}
-          <ReportGenerateButtons athleteId={id} />
-          <EditAthleteModal athlete={athlete} />
-          <Link
-            href={`/dashboard/import?athleteId=${id}&athleteName=${encodeURIComponent(athlete.name)}`}
-            className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-1.5")}
-          >
-            <FileUp className="w-3.5 h-3.5" /> Import PDF
-          </Link>
-        </div>
-      </div>
-
-      {/* ── Stat strip ───────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          title="Current weight"
-          value={latestWeight ? latestWeight.weight_kg : null}
-          unit="kg"
-          trend={
-            weightChange != null
-              ? `${Math.abs(weightChange).toFixed(1)} kg vs last week`
-              : null
-          }
-          trendUp={weightChange != null ? weightChange <= 0 : undefined}
-        />
-        <StatCard
-          title="Last session load"
-          value={lastLoad}
-          unit="AU"
-        />
-        <StatCard
-          title="Last session RPE"
-          value={lastRpe}
-          badge={lastRpeBand?.label}
-          badgeClassName={lastRpeBand?.className}
-        />
-        <StatCard
-          title="Weeks in program"
-          value={weeksInProgram}
-          unit={weeksInProgram != null ? (weeksInProgram === 1 ? "week" : "weeks") : undefined}
+        <Tabs
+          label="Athlete sections"
+          tabs={[...TABS]}
+          active={tab}
+          hrefFor={(key) => (key === "overview" ? `/dashboard/athlete/${id}` : `/dashboard/athlete/${id}?tab=${key}`)}
         />
       </div>
 
-      {/* ── Goal editor ───────────────────────────────────────────────────────── */}
-      <Card className="shadow-sm">
-        <CardContent className="pt-5">
-          <GoalEditor athleteId={id} initialGoal={goal} monthYear={monthYear} />
-        </CardContent>
-      </Card>
-
-      {/* ── Two-column grid: charts left | schedule right ────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 items-start">
-
-        {/* Left column */}
-        <div className="flex flex-col gap-6">
-
-          <Section title="Weight tracking">
-            <WeightChart actuals={weightTrendsResult.actuals} targets={weightTrendsResult.targets} />
-          </Section>
-
-          <Section title="Training load — last 8 weeks">
-            <SessionLoadChart loads={sessionLoadsResult} />
-          </Section>
-
-          {athlete.sex === "female" && (
-            <Section title="Menstrual cycle">
-              <CyclePhasePanel
-                lastCycleStart={lastCycleResult.data?.cycle_start_date ?? null}
-                cycleLength={lastCycleResult.data?.cycle_length_days ?? 28}
-              />
-            </Section>
-          )}
-
-          <Section title="Wellbeing trends — last 28 days">
-            {checkIns.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No check-in data in the last 28 days.</p>
-            ) : (
-              <WellbeingCharts trends={trendsResult.domains} checkIns={checkIns} />
-            )}
-          </Section>
-
-          <Section title="Training performance">
-            <PerformanceCharts progressions={exerciseProgressionsResult} />
-          </Section>
-
-          <Section title="Injury log — last 14 days">
-            {injuries.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No injuries reported in the last 14 days.</p>
-            ) : (
-              <Card className="shadow-sm">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Area</TableHead>
-                      <TableHead>Pain (0–5)</TableHead>
-                      <TableHead>Most recent</TableHead>
-                      <TableHead>Days ongoing</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {injuries.map((inj, i) => (
-                      <TableRow key={i}>
-                        <TableCell className="font-medium">{inj.area}</TableCell>
-                        <TableCell>
-                          <span className={`font-bold ${
-                            inj.mostRecentPainRating >= 4 ? "text-red-600"
-                            : inj.mostRecentPainRating >= 2 ? "text-amber-600"
-                            : "text-foreground"
-                          }`}>
-                            {inj.mostRecentPainRating}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">{inj.mostRecentDate}</TableCell>
-                        <TableCell className="text-muted-foreground">{inj.daysOngoing}d</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </Card>
-            )}
-          </Section>
-        </div>
-
-        {/* Right column: sticky schedule panel */}
-        <div className="flex flex-col gap-6 lg:sticky lg:top-6">
-          <Section title="Weekly schedule">
-            <WeekSchedulePanel
-              athleteId={id}
-              initialSnapshot={weekSnapshot}
-              initialWeekStart={currentWeekStart}
-            />
-          </Section>
-        </div>
-      </div>
-
-      {/* ── Recent activity ──────────────────────────────────────────────────── */}
-      <Section title="Recent activity — last 7 days">
-        {recentActivity.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No check-in data in the last 7 days.</p>
-        ) : (
-          <Card className="shadow-sm">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Session type</TableHead>
-                  <TableHead>RPE</TableHead>
-                  <TableHead>Duration</TableHead>
-                  <TableHead>Load (AU)</TableHead>
-                  <TableHead>Mood</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {recentActivity.map((c, i) => {
-                  const daySessions = sessionsByDate.get(c.checkin_date) ?? [];
-                  const day = summariseDay(daySessions);
-                  return (
-                    <TableRow key={i}>
-                      <TableCell className="font-medium tabular-nums text-sm">
-                        {c.checkin_date}
-                      </TableCell>
-                      <TableCell>
-                        {day.types.length > 0 ? (
-                          <div className="flex flex-wrap gap-1">
-                            {day.types.map((t) => (
-                              <span key={t} className="text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-                                {t}
-                              </span>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-sm text-muted-foreground">
-                            {day.count > 0 ? "Training" : "Rest day"}
-                          </span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {day.count > 0 ? (
-                          <div className="flex flex-wrap gap-1">
-                            {daySessions.map((s) => (
-                              <span
-                                key={s.position}
-                                className={cn("text-xs font-semibold px-2 py-0.5 rounded-full", rpeBand(s.rpe).className)}
-                              >
-                                {s.rpe}
-                              </span>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {day.count > 0
-                          ? `${day.totalMins} min${day.count > 1 ? ` · ${day.count} sessions` : ""}`
-                          : "—"}
-                      </TableCell>
-                      <TableCell className="text-sm font-medium tabular-nums">
-                        {day.count > 0 ? day.totalLoad : <span className="text-muted-foreground">—</span>}
-                      </TableCell>
-                      <TableCell>
-                        {c.mood != null ? (
-                          <span className={cn(
-                            "text-xs font-semibold px-2 py-0.5 rounded-full",
-                            c.mood >= 4 ? "bg-emerald-100 text-emerald-700"
-                            : c.mood >= 3 ? "bg-amber-100 text-amber-700"
-                            : "bg-red-100 text-red-700",
-                          )}>
-                            {c.mood}/5
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </Card>
-        )}
-      </Section>
-
-      {/* ── Session history ───────────────────────────────────────────────────── */}
-      <Section title="Session history">
-        {sessions.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No training sessions recorded.</p>
-        ) : (
-          <Card className="shadow-sm">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Workout</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>RPE</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sessions.map((s) => {
-                  const template = Array.isArray(s.workout_template)
-                    ? s.workout_template[0]
-                    : s.workout_template;
-                  return (
-                    <TableRow key={s.id}>
-                      <TableCell className="font-medium tabular-nums text-sm">{s.session_date}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{template?.name ?? "Ad hoc"}</TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={
-                            s.completed
-                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                              : "bg-muted text-muted-foreground"
-                          }
-                        >
-                          {s.completed ? "Completed" : "Incomplete"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {s.session_rpe != null
-                          ? <span className="font-semibold">{s.session_rpe}</span>
-                          : <span className="text-muted-foreground">—</span>
-                        }
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </Card>
-        )}
-      </Section>
-
-      {/* ── Reports ───────────────────────────────────────────────────────────── */}
-      <Section title="Reports">
-        <ReportPanel
+      {/* ── Active tab ─────────────────────────────────────────────────────── */}
+      {tab === "overview" && (
+        <OverviewTab
           athleteId={id}
-          checkInCount30d={checkInCount30d}
-          weekScheduleCount4w={weekScheduleCount4w}
-          lastSessionDate={lastSessionDate}
-          reportHistory={reportHistory}
+          snapshot={snapshot}
+          goal={goalResult.data?.goal_text ?? ""}
+          monthYear={monthYear}
+          sessions={loggedSessions}
+          weekStart={currentWeekStart}
+          weekSnapshot={weekSnapshot}
+          sessionLoads={sessionLoads}
+          trends={trends.domains}
+          checkIns={checkIns}
+          today={today}
         />
-      </Section>
+      )}
+
+      {tab === "training" && (
+        <TrainingTab
+          athleteId={id}
+          sessionLoads={sessionLoads}
+          weekSnapshot={weekSnapshot}
+          weekStart={currentWeekStart}
+          checkIns={checkIns}
+          loggedSessions={loggedSessions}
+          trainerizeSessions={trainerizeSessions}
+          progressions={progressions}
+          programme={programme}
+        />
+      )}
+
+      {tab === "wellbeing" && (
+        <WellbeingTab
+          trends={trends.domains}
+          checkIns={checkIns.filter((c) => c.checkin_date >= cutoff28)}
+          injuries={injuries}
+          isFemale={athlete.sex === "female"}
+          lastCycle={lastCycleResult.data ?? null}
+        />
+      )}
+
+      {tab === "body" && <BodyTab snapshot={snapshot} weightTrends={weightTrends} today={today} />}
+
+      {tab === "reports" && (
+        <Panel title="Reports">
+          <ReportPanel
+            athleteId={id}
+            checkInCount30d={checkInCount30dResult.count ?? 0}
+            weekScheduleCount4w={weekSchedule4wResult.count ?? 0}
+            lastSessionDate={trainerizeSessions[0]?.session_date ?? null}
+            reportHistory={reportHistoryResult.data ?? []}
+          />
+        </Panel>
+      )}
     </div>
   );
 }

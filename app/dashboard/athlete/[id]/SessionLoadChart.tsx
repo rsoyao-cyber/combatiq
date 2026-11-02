@@ -28,7 +28,7 @@ export function SessionLoadChart({ loads }: { loads: SessionLoadPoint[] }) {
   }));
 
   return (
-    <div className="bg-card rounded-xl border border-border p-4">
+    <div>
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-4">
         <span className="inline-block w-3 h-3 rounded-sm bg-primary" />
         Weekly load (AU) — RPE × minutes per session

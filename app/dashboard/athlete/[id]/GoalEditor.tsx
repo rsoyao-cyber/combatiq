@@ -35,10 +35,8 @@ export function GoalEditor({
   }
 
   return (
-    <div className="mt-4 pt-4 border-t border-border">
-      <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">
-        Monthly goal — {monthYear}
-      </p>
+    // The month is shown by the surrounding panel's title
+    <div>
       {editing ? (
         <div className="flex gap-2 items-start">
           <Textarea
@@ -66,7 +64,7 @@ export function GoalEditor({
             variant="ghost"
             size="sm"
             onClick={() => setEditing(true)}
-            className={`shrink-0 gap-1.5 text-xs ${saved ? "text-emerald-600" : "text-primary"}`}
+            className={`shrink-0 gap-1.5 text-xs ${saved ? "text-status-ready" : "text-primary"}`}
           >
             {saved ? <><Check className="w-3 h-3" /> Saved</> : <><Pencil className="w-3 h-3" /> Edit</>}
           </Button>
