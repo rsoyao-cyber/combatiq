@@ -41,8 +41,9 @@ export async function proxy(request: NextRequest) {
   if (!user && pathname.startsWith("/dashboard")) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
-    // Preserve the original destination so we can redirect back after login
-    loginUrl.searchParams.set("next", pathname);
+    loginUrl.search = "";
+    // Preserve the original destination (including ?tab=…) to return to after login
+    loginUrl.searchParams.set("next", pathname + request.nextUrl.search);
     return NextResponse.redirect(loginUrl);
   }
 
