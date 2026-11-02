@@ -455,7 +455,7 @@ export async function getSessionLoads(
   const todayMonday = getMondayOf(new Date());
   for (let i = weeks - 1; i >= 0; i--) {
     const d = new Date(todayMonday);
-    d.setDate(d.getDate() - i * 7);
+    d.setUTCDate(d.getUTCDate() - i * 7);
     const weekStart = d.toISOString().split("T")[0];
     result.push({ weekStart, load: weekMap.get(weekStart) ?? 0 });
   }
@@ -475,12 +475,16 @@ export type WeightTrendsResult = {
   targets: WeightTarget[];
 };
 
-/** Returns the ISO date string for the Monday of the week containing `date`. */
+/**
+ * Returns the ISO date string for the Monday of the week containing `date`.
+ * All in UTC: check-in dates are stored as UTC days, and mixing local time
+ * in here shifted weeks by a day across the October clock change.
+ */
 function getMondayOf(date: Date): string {
-  const d = new Date(date);
-  const day = d.getDay(); // 0=Sun, 1=Mon, …
+  const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const day = d.getUTCDay(); // 0=Sun, 1=Mon, …
   const diff = day === 0 ? -6 : 1 - day;
-  d.setDate(d.getDate() + diff);
+  d.setUTCDate(d.getUTCDate() + diff);
   return d.toISOString().split("T")[0];
 }
 
@@ -514,7 +518,7 @@ export async function getWeightTrends(
   const targets: WeightTarget[] = [];
   for (let i = 0; i <= weeks; i++) {
     const d = new Date(baseMonday);
-    d.setDate(d.getDate() + i * 7);
+    d.setUTCDate(d.getUTCDate() + i * 7);
     targets.push({
       date: d.toISOString().split("T")[0],
       weight_kg: Math.round(baseWeight * Math.pow(0.99, i) * 10) / 10,
