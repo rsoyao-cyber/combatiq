@@ -187,7 +187,7 @@ export const CheckInSchema = z.object({
   motivation: ratingSchema,
   mood: ratingSchema,
   stress: ratingSchema,
-  diet_quality: ratingSchema,
+  diet_quality: ratingSchema.nullable().optional(),
   hitting_nutrition_targets: z.boolean().nullable().optional(),
   sessions: z.array(CheckInSessionSchema).max(5).optional(),
   // Legacy daily aggregate — sent by forms loaded before per-session records.

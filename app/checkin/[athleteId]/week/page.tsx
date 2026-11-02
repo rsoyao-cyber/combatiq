@@ -3,6 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getMondayOfWeek, formatWeekRange } from "@/lib/training-week-types";
 import type { TrainingWeekSnapshot, WeekScheduleJson, WeekSlot, SlotIntensity } from "@/lib/training-week-types";
 import { WeekAlternativeForm } from "./WeekAlternativeForm";
+import { BrandMark } from "@/components/checkin/BrandMark";
 
 // ─── Read-only slot display ────────────────────────────────────────────────────
 
@@ -79,14 +80,16 @@ export default async function WeekCheckInPage({
   if (!isCurrentWeek) {
     const weekLabel = formatWeekRange(weekStart);
     return (
-      <div className="min-h-screen bg-background">
+      <div className="dark min-h-screen bg-background text-foreground">
         <header
-          className="bg-primary text-primary-foreground px-5 pb-6"
-          style={{ paddingTop: "max(2.5rem, env(safe-area-inset-top))" }}
+          className="max-w-lg mx-auto px-5 pb-2 flex flex-col gap-4"
+          style={{ paddingTop: "max(1.25rem, env(safe-area-inset-top))" }}
         >
-          <p className="text-sm text-primary-foreground/70 mb-1">{weekLabel}</p>
-          <h1 className="text-2xl font-bold">{athlete.name}</h1>
-          <p className="text-primary-foreground/70 text-sm mt-1">Your training plan</p>
+          <BrandMark />
+          <div className="flex flex-col gap-1">
+            <p className="text-[13px] font-medium text-muted-foreground">{weekLabel} · {athlete.name}</p>
+            <h1 className="font-display text-[34px] leading-none font-bold uppercase tracking-wide">Your training plan</h1>
+          </div>
         </header>
 
         <div
@@ -99,7 +102,7 @@ export default async function WeekCheckInPage({
                 <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1">
                   {day.day}
                 </p>
-                <div className="rounded-xl border border-border bg-background px-4">
+                <div className="rounded-2xl border border-border bg-card px-4">
                   <SlotRow period="Morning"   slot={day.morning}   />
                   <SlotRow period="Afternoon" slot={day.afternoon} />
                   <SlotRow period="Evening"   slot={day.evening}   />
@@ -122,6 +125,7 @@ export default async function WeekCheckInPage({
 
   // ── Current week: deviation form ───────────────────────────────────────────
   return (
+    <div className="dark text-foreground">
     <WeekAlternativeForm
       athleteId={athlete.id}
       athleteName={athlete.name}
@@ -129,5 +133,6 @@ export default async function WeekCheckInPage({
       primarySchedule={primarySchedule}
       existingAlternative={existingAlternative}
     />
+    </div>
   );
 }

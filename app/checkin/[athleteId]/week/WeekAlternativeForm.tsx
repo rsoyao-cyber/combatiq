@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, Check, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BrandMark } from "@/components/checkin/BrandMark";
 
 // ─── Intensity styling ────────────────────────────────────────────────────────
 
@@ -195,8 +196,10 @@ export function WeekAlternativeForm({
   if (status === "success") {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center px-5 text-center gap-4">
-        <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center text-3xl">✅</div>
-        <h1 className="text-2xl font-bold text-foreground">Week logged</h1>
+        <div className="size-16 rounded-full bg-status-ready-bg border border-status-ready flex items-center justify-center">
+          <Check className="size-8 text-status-ready" strokeWidth={2.5} aria-hidden="true" />
+        </div>
+        <h1 className="font-display text-[40px] leading-none font-bold uppercase">Week logged</h1>
         <p className="text-muted-foreground">
           {deviationCount === 0
             ? "Got it — you stuck to the plan this week."
@@ -219,12 +222,15 @@ export function WeekAlternativeForm({
   return (
     <div className="min-h-screen bg-background">
       <header
-        className="bg-primary text-primary-foreground px-5 pb-6"
-        style={{ paddingTop: "max(2.5rem, env(safe-area-inset-top))" }}
+        className="max-w-lg mx-auto px-5 pb-2 flex flex-col gap-4"
+        style={{ paddingTop: "max(1.25rem, env(safe-area-inset-top))" }}
       >
-        <p className="text-sm text-primary-foreground/70 mb-1">{weekLabel}</p>
-        <h1 className="text-2xl font-bold">{athleteName}</h1>
-        <p className="text-primary-foreground/70 text-sm mt-1">
+        <BrandMark />
+        <div className="flex flex-col gap-1">
+          <p className="text-[13px] font-medium text-muted-foreground">{weekLabel} · {athleteName}</p>
+          <h1 className="font-display text-[34px] leading-none font-bold uppercase tracking-wide">This week</h1>
+        </div>
+        <p className="text-sm text-muted-foreground">
           {deviationCount === 0
             ? "Tap Change on any session that didn't go to plan."
             : `${deviationCount} change${deviationCount !== 1 ? "s" : ""} logged`}

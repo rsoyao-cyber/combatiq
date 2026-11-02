@@ -11,12 +11,14 @@ readiness reports.
 - Supabase (PostgreSQL) for all data
 - Anthropic Claude API (claude-sonnet-4-6) for report generation
 - shadcn/ui (base-nova style, @base-ui/react primitives) for all UI components
-- tweakcn indigo/violet theme via CSS custom properties
+- TFP Clinic theme (tfpclinic.co.uk palette) via CSS custom properties
 - Recharts for trend visualisation
 - Deployed to Vercel
 
 ## Check-in scale
-All athlete ratings use 0-5 (0 = very poor, 5 = excellent)
+All athlete ratings use 0-5 (0 = very poor, 5 = excellent).
+Ratings start unanswered (null) — never pre-fill a default value. The morning step
+requires all six wellbeing ratings; diet_quality is nullable (asked at end of day only).
 
 ## Check-in session types
 Athletes select one or more activity types per session on the Training Load step.
@@ -55,9 +57,11 @@ Session-RPE (Foster): load (AU) = RPE (0-10) × minutes, per session. Never mult
 - All components use shadcn/ui base-nova style (@base-ui/react primitives)
 - base-nova Button does NOT support asChild — use buttonVariants({variant, size}) + cn() applied directly to <Link> instead
 - Theme tokens (bg-primary, text-foreground, text-muted-foreground, etc.) are used throughout — never hardcode zinc/amber colours for structural elements
-- Traffic-light colours (emerald/amber/red) for rest/med/high intensity are intentional exceptions
-- Range slider thumb colour is set via var(--primary) in globals.css
-- Theme defined in app/globals.css using tweakcn oklch CSS custom properties
+- Traffic-light colours (emerald/amber/red) for rest/med/high intensity are intentional exceptions; status tokens bg-status-ready/-monitor/-attention (+ -bg) exist for athlete status
+- Theme defined in app/globals.css: TFP navy/blue palette. :root = light (practitioner dashboard), .dark = navy (athlete pages — wrap them in className="dark")
+- Fonts: Inter (font-sans) for UI, Barlow Condensed (font-display, uppercase) for headings, loaded via next/font in app/layout.tsx
+- Athlete check-in building blocks live in components/checkin/ (RatingScale, RpeScale, Stepper, ChipToggle, BrandMark)
+- No emoji as icons — use lucide-react
 
 ## Primary data ingestion flow
 Yusuf uploads Trainerize PDF exports. The system parses them via

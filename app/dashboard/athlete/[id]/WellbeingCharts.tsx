@@ -33,7 +33,7 @@ type CheckInRow = {
   motivation: number;
   mood: number;
   stress: number;
-  diet_quality: number;
+  diet_quality: number | null;
 };
 
 export function WellbeingCharts({

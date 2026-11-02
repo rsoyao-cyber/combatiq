@@ -119,7 +119,7 @@ export type Database = {
           check_in_timing: string | null
           checkin_date: string
           created_at: string
-          diet_quality: number
+          diet_quality: number | null
           hitting_nutrition_targets: boolean | null
           id: string
           injury_area: string | null
@@ -143,7 +143,7 @@ export type Database = {
           check_in_timing?: string | null
           checkin_date: string
           created_at?: string
-          diet_quality: number
+          diet_quality?: number | null
           hitting_nutrition_targets?: boolean | null
           id?: string
           injury_area?: string | null
@@ -167,7 +167,7 @@ export type Database = {
           check_in_timing?: string | null
           checkin_date?: string
           created_at?: string
-          diet_quality?: number
+          diet_quality?: number | null
           hitting_nutrition_targets?: boolean | null
           id?: string
           injury_area?: string | null

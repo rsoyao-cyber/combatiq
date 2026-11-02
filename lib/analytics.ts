@@ -81,11 +81,6 @@ export type InjuryFlag = {
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
-function avg(values: number[]): number {
-  if (values.length === 0) return 0;
-  return values.reduce((a, b) => a + b, 0) / values.length;
-}
-
 function nullableAvg(values: (number | null)[]): number | null {
   const clean = values.filter((v): v is number => v != null);
   if (clean.length === 0) return null;
@@ -186,9 +181,10 @@ export async function getRagStatus(athleteId: string): Promise<RagStatusResult> 
   const rows = data ?? [];
 
   const domainStatuses = WELLBEING_DOMAINS.map((domain) => {
-    const values = rows.map((r) => r[domain] as number);
-    const average = avg(values);
-    return { domain, average, status: domainRag(average) };
+    // A domain nobody answered this week (e.g. diet on morning-only days)
+    // must not drag the status down; no check-ins at all still counts as 0.
+    const average = nullableAvg(rows.map((r) => r[domain])) ?? (rows.length === 0 ? 0 : null);
+    return { domain, average: average ?? 0, status: average == null ? "green" as const : domainRag(average) };
   });
 
   // Overall status: worst individual domain drives the result

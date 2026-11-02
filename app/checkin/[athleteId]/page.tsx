@@ -10,7 +10,15 @@ export default async function CheckInPage({
   const { athleteId } = await params;
   const today = new Date().toISOString().split("T")[0];
 
-  const [{ data: athlete }, { data: existingCheckIn }, { data: existingSessions }] = await Promise.all([
+  const sixtyDaysAgo = new Date();
+  sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+
+  const [
+    { data: athlete },
+    { data: existingCheckIn },
+    { data: existingSessions },
+    { data: recentCheckIns },
+  ] = await Promise.all([
     supabaseAdmin
       .from("athlete")
       .select("id, name, sex")
@@ -32,6 +40,13 @@ export default async function CheckInPage({
       .eq("athlete_id", athleteId)
       .eq("session_date", today)
       .order("position", { ascending: true }),
+
+    // Recent check-in dates for the streak
+    supabaseAdmin
+      .from("daily_check_in")
+      .select("checkin_date")
+      .eq("athlete_id", athleteId)
+      .gte("checkin_date", sixtyDaysAgo.toISOString().split("T")[0]),
   ]);
 
   if (!athlete) notFound();
@@ -43,6 +58,7 @@ export default async function CheckInPage({
       isFemale={athlete.sex === "female"}
       existingCheckIn={existingCheckIn ?? null}
       existingSessions={existingSessions ?? []}
+      checkInDates={(recentCheckIns ?? []).map((c) => c.checkin_date)}
     />
   );
 }

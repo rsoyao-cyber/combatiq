@@ -28,7 +28,7 @@ function buildEmailHtml(data: {
   mental_focus: number;
   motivation: number;
   stress: number;
-  diet_quality: number;
+  diet_quality?: number | null;
   hitting_nutrition_targets?: boolean | null;
   sessions: CheckInSessionInput[];
   weight_kg?: number | null;
@@ -102,7 +102,7 @@ function buildEmailHtml(data: {
 
           <p style="margin:0 0 12px;color:#71717a;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">Nutrition &amp; Body</p>
           <table cellpadding="0" cellspacing="0" style="width:100%;margin-bottom:20px;">
-            ${row("Diet quality", rating(data.diet_quality))}
+            ${row("Diet quality", data.diet_quality != null ? rating(data.diet_quality) : "—")}
             ${row("Hitting targets", flag(data.hitting_nutrition_targets))}
             ${row("Body weight", data.weight_kg != null ? `${data.weight_kg} kg` : "—")}
           </table>
@@ -181,7 +181,7 @@ export async function POST(request: Request) {
       motivation: checkinFields.motivation,
       mood: checkinFields.mood,
       stress: checkinFields.stress,
-      diet_quality: checkinFields.diet_quality,
+      diet_quality: checkinFields.diet_quality ?? null,
       hitting_nutrition_targets: checkinFields.hitting_nutrition_targets ?? null,
       injury_area: checkinFields.injury_area ?? null,
       injury_pain_rating: checkinFields.injury_pain_rating ?? null,
