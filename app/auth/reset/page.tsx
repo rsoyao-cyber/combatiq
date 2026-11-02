@@ -8,41 +8,46 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 
-// Landing page for the password-reset email. Supabase redirects here with a
-// one-time ?code= that is exchanged for a session (PKCE — the code verifier
-// lives in a cookie set when "Forgot password?" was clicked, so the link must
-// be opened in the same browser). Then the user picks a new password.
+// Landing page for the password-reset email. Two link formats:
+// - ?token_hash=…&type=recovery (current email template): works in any
+//   browser. The token is only redeemed when the new password is submitted,
+//   so email link-scanners that open the page don't use it up.
+// - ?code=… (PKCE, older template / Supabase default): exchanged on load and
+//   only works in the browser that clicked "Forgot password?".
 function ResetForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const tokenHash = searchParams.get("token_hash");
+  const code = searchParams.get("code");
 
-  const [stage, setStage] = useState<"verifying" | "ready" | "invalid" | "saving">("verifying");
+  const [stage, setStage] = useState<"verifying" | "ready" | "invalid" | "saving">(
+    tokenHash ? "ready" : "verifying",
+  );
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
   const exchanged = useRef(false); // a code is single-use; dev strict mode runs effects twice
 
   useEffect(() => {
-    if (exchanged.current) return;
+    if (tokenHash || exchanged.current) return;
     exchanged.current = true;
 
     async function verify() {
-      const code = searchParams.get("code");
       if (!code) {
-        setError(searchParams.get("error_description") ?? "This reset link is missing its code.");
+        setError(searchParams.get("error_description") ?? "This reset link is incomplete.");
         setStage("invalid");
         return;
       }
       const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
       if (exchangeError) {
-        setError("This link has expired or was opened in a different browser.");
+        setError("This link only works in the browser where you requested it, and for one hour.");
         setStage("invalid");
         return;
       }
       setStage("ready");
     }
     verify();
-  }, [searchParams]);
+  }, [code, tokenHash, searchParams]);
 
   async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -57,6 +62,16 @@ function ResetForm() {
     }
 
     setStage("saving");
+
+    if (tokenHash) {
+      const { error: otpError } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: "recovery" });
+      if (otpError) {
+        setError("This link has already been used or is more than an hour old.");
+        setStage("invalid");
+        return;
+      }
+    }
+
     const { error: updateError } = await supabase.auth.updateUser({ password });
     if (updateError) {
       setError(updateError.message);

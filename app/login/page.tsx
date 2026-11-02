@@ -49,7 +49,11 @@ function LoginForm() {
 
     setLoading(false);
     if (resetError) {
-      setError(resetError.message);
+      setError(
+        /rate limit/i.test(resetError.message)
+          ? "Too many reset emails have been sent in the last hour (the current email setup allows 2 per hour). Please try again later."
+          : resetError.message,
+      );
       return;
     }
     setMode("sent");
@@ -61,7 +65,7 @@ function LoginForm() {
         <h2 className="font-display text-3xl font-bold uppercase text-foreground">Check your email</h2>
         <p className="text-sm text-muted-foreground">
           If an account exists for <span className="font-medium text-foreground">{email}</span>, we&apos;ve sent a
-          link to set a new password. Open it on this device and browser.
+          link to set a new password. It works for one hour and can be used once.
         </p>
         <Button variant="outline" className="w-full" onClick={() => { setMode("signin"); setError(null); }}>
           Back to sign in
